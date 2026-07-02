@@ -21,7 +21,10 @@
     "seed:demo": "tsx scripts/seed/seed-demo.ts",
     "demo:happy-path": "tsx scripts/demo/run-happy-path.ts",
     "demo:attacks": "tsx scripts/demo/run-attack-cases.ts",
-    "deploy:contracts": "tsx scripts/deploy/contracts.ts"
+    "deploy:contracts": "tsx scripts/deploy/contracts.ts",
+    "infra:up": "docker compose -f docker-compose.offchain.yml up -d postgres redis",
+    "infra:down": "docker compose -f docker-compose.offchain.yml down",
+    "deploy:offchain": "tsx scripts/deploy/offchain-services.ts --strict"
   },
   "devDependencies": {
     "@types/node": "^25.0.2",

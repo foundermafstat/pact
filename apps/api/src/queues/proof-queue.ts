@@ -59,8 +59,18 @@ export const checkQueueConnection = async (
   };
 };
 
-export const proofQueue = createProofQueue();
+let proofQueue: Queue | null = null;
+
+export const getProofQueue = (): Queue => {
+  proofQueue ??= createProofQueue();
+  return proofQueue;
+};
 
 export const closeProofQueue = async (): Promise<void> => {
+  if (!proofQueue) {
+    return;
+  }
+
   await proofQueue.close();
+  proofQueue = null;
 };

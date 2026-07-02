@@ -11,6 +11,8 @@ coverage/
 test-results/
 playwright-report/
 target/
+.pact-deploy-health/
+.pact-indexer-cursor.json
 circuits/artifacts/
 scripts/seed/*.generated.json
 
