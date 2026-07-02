@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 549 767" width="549" height="767" role="img" aria-labelledby="title desc">
+  <title id="title">Pact logo</title>
+  <desc id="desc">Premium geometric gold Pact emblem with transparent background.</desc>
+  <defs>
+    <linearGradient id="pactGold" x1="0" y1="0" x2="0" y2="767" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFE486"/>
+      <stop offset="0.44" stop-color="#F2C14E"/>
+      <stop offset="1" stop-color="#C98612"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#pactGold)" fill-rule="nonzero" shape-rendering="geometricPrecision">
+    <path d="M0 428 L0 568 L275 767 L549 568 L548 429 L508 458 L508 547 L274 716 L41 547 L41 457 Z"/>
+    <path d="M251 0 L0 174 L0 390 L141 494 L254 406 L227 380 L140 442 L44 372 L41 197 L210 81 L211 234 L107 308 L107 360 L248 262 Z"/>
+    <path d="M298 0 L298 260 L442 360 L442 307 L338 234 L342 81 L508 195 L508 369 L409 442 L319 379 L133 546 L161 568 L319 430 L408 494 L549 390 L549 172 Z"/>
+    <path d="M317 474 L188 589 L279 664 L309 640 L249 590 L268 570 L332 623 L361 600 L298 545 L317 526 L384 582 L414 559 Z"/>
+  </g>
+</svg>
