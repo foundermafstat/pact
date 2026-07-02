@@ -154,6 +154,15 @@ select {
   padding: 20px;
 }
 
+.stacked-section {
+  margin-top: 18px;
+}
+
+.section-title {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
 .landing-hero {
   min-height: 360px;
   display: grid;
@@ -288,6 +297,38 @@ select {
 .primary-button:disabled {
   cursor: progress;
   opacity: 0.68;
+}
+
+.secondary-button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--accent-strong);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.secondary-button:disabled {
+  cursor: progress;
+  opacity: 0.68;
+}
+
+.funding-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e8edf3;
+  overflow: hidden;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
 }
 
 .success-text {

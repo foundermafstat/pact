@@ -1,4 +1,5 @@
 import { CreateProgramForm } from "../../features/sponsor/create-program-form";
+import { FundProgramPanel } from "../../features/sponsor/fund-program-panel";
 
 export default function SponsorPage() {
   return (
@@ -7,6 +8,10 @@ export default function SponsorPage() {
       <p className="page-kicker">Create, fund, and activate escrow programs.</p>
       <section className="section">
         <CreateProgramForm />
+      </section>
+      <section className="section stacked-section">
+        <h2 className="section-title">Funding</h2>
+        <FundProgramPanel />
       </section>
     </>
   );
