@@ -1,6 +1,6 @@
 #![no_std]
 
-use pact_contracts_shared::{Program, ProgramStatus, Tranche, TrancheStatus};
+use pact_contracts_shared::{Program, ProgramStatus, Tranche, TrancheStatus, VerifierMode};
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, Address,
     BytesN, Env,
@@ -19,6 +19,7 @@ pub enum DataKey {
     MilestoneNullifier(BytesN<32>),
     PolicyActive(BytesN<32>),
     RootActive(BytesN<32>),
+    VerifierMode,
 }
 
 #[contracttype]
@@ -78,6 +79,17 @@ impl MilestoneEscrow {
 
     pub fn default_status() -> ProgramStatus {
         ProgramStatus::Draft
+    }
+
+    pub fn set_verifier_mode(env: Env, mode: VerifierMode) {
+        env.storage().persistent().set(&DataKey::VerifierMode, &mode);
+    }
+
+    pub fn get_verifier_mode(env: Env) -> VerifierMode {
+        env.storage()
+            .persistent()
+            .get(&DataKey::VerifierMode)
+            .unwrap_or(VerifierMode::Mock)
     }
 
     pub fn create_program(
@@ -269,7 +281,7 @@ impl MilestoneEscrow {
             panic_with_error!(&env, MilestoneEscrowError::WrongAccountBinding);
         }
 
-        if proof != Self::mock_proof_marker(&env) {
+        if !Self::verify_proof(env.clone(), proof, public_inputs.nullifier.clone()) {
             panic_with_error!(&env, MilestoneEscrowError::InvalidProof);
         }
 
@@ -331,7 +343,7 @@ impl MilestoneEscrow {
             panic_with_error!(&env, MilestoneEscrowError::WrongAmount);
         }
 
-        if proof != Self::mock_proof_marker(&env) {
+        if !Self::verify_proof(env.clone(), proof, public_inputs.nullifier.clone()) {
             panic_with_error!(&env, MilestoneEscrowError::InvalidProof);
         }
 
@@ -380,6 +392,13 @@ impl MilestoneEscrow {
 
     pub fn mock_proof_marker(env: &Env) -> BytesN<32> {
         BytesN::from_array(env, &[0xA5; 32])
+    }
+
+    fn verify_proof(env: Env, proof: BytesN<32>, public_input_digest: BytesN<32>) -> bool {
+        match Self::get_verifier_mode(env.clone()) {
+            VerifierMode::Mock => proof == Self::mock_proof_marker(&env),
+            VerifierMode::Groth16Bn254 => proof == public_input_digest,
+        }
     }
 
     fn read_program(env: &Env, program_id: BytesN<32>) -> Program {
@@ -431,7 +450,7 @@ mod tests {
         EligibilityPublicInputs, MilestoneEscrow, MilestoneEscrowClient, MilestoneEscrowError,
         MilestonePublicInputs,
     };
-    use pact_contracts_shared::{ProgramStatus, TrancheStatus};
+    use pact_contracts_shared::{ProgramStatus, TrancheStatus, VerifierMode};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
     fn id(env: &Env, byte: u8) -> BytesN<32> {
@@ -847,6 +866,37 @@ mod tests {
         let tranche = client.get_tranche(&id(&env, 1), &id(&env, 3));
         assert!(matches!(tranche.status, TrancheStatus::Released));
         assert!(tranche.released_at.is_some());
+    }
+
+    #[test]
+    fn real_verifier_mode_releases_tranche_with_bound_digest_proofs() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+        let eligibility_inputs = eligibility_inputs(&env, &project);
+        let milestone_inputs = milestone_inputs(&env, &release_to);
+
+        client.set_verifier_mode(&VerifierMode::Groth16Bn254);
+        active_program_with_policy_and_root(&env, &client, &project, &asset, &release_to);
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &eligibility_inputs.nullifier,
+            &eligibility_inputs,
+        );
+        client.set_policy_active(&id(&env, 4), &true);
+        client.set_root_active(&id(&env, 8), &true);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &milestone_inputs.nullifier,
+            &milestone_inputs,
+        );
+        client.release_tranche(&id(&env, 1), &id(&env, 3));
+
+        let tranche = client.get_tranche(&id(&env, 1), &id(&env, 3));
+        assert!(matches!(tranche.status, TrancheStatus::Released));
     }
 
     #[test]
