@@ -17,7 +17,6 @@ describe("API route registry", () => {
     const app = await buildApiServer(testConfig);
 
     const endpoints = [
-      ["GET", "/api/attestor/programs/program-1/milestones/M1"],
       ["POST", "/api/proofs/eligibility/generate"],
       ["POST", "/api/proofs/milestone/generate"],
       ["POST", "/api/proofs/milestone/submit"],

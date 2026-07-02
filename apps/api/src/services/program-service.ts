@@ -25,6 +25,10 @@ const now = (): string => new Date().toISOString();
 export class ProgramService {
   private readonly programs = new Map<string, ProgramRecord>();
 
+  public reset(): void {
+    this.programs.clear();
+  }
+
   public createProgram(input: CreateProgramRequest): ProgramRecord {
     const createdAt = now();
     const program: ProgramDto = {

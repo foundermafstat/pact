@@ -6,6 +6,7 @@ import {
   attestorService,
   buildMilestoneCommitment
 } from "../src/services/attestor-service";
+import { programService } from "../src/services/program-service";
 
 const testConfig = {
   nodeEnv: "test",
@@ -20,6 +21,7 @@ const testConfig = {
 describe("Attestor APIs", () => {
   beforeEach(() => {
     attestorService.reset();
+    programService.reset();
   });
 
   it("builds a stable milestone commitment and root from a fixture", () => {
@@ -170,6 +172,90 @@ describe("Attestor APIs", () => {
     expect(publishResponse.statusCode).toBe(200);
     expect(body.status).toBe("Active");
     expect(body.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+    await app.close();
+  });
+
+  it("returns milestone proof input only to the project wallet or admin", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const programResponse = await app.inject({
+      method: "POST",
+      url: "/api/programs",
+      payload: {
+        programKey: "PACT-DEMO-001",
+        sponsorWallet: "GSPONSOR",
+        projectWallet: "GPROJECT",
+        assetContract: "USDC",
+        totalAmount: "100000000",
+        eligibilityPolicyId: "eligibility-policy-1",
+        tranches: [
+          {
+            milestoneKey: "M1",
+            milestonePolicyId: "22222222-2222-4222-8222-222222222222",
+            amount: "50000000",
+            releaseToWallet: "GPROJECT"
+          }
+        ]
+      }
+    });
+    const programId = programResponse.json().data.program.id;
+
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-evidence/mock",
+      payload: {
+        programId,
+        milestoneKey: "M1",
+        metrics: {
+          activeUsers: 735,
+          pilotPartners: 4,
+          auditPassed: true
+        },
+        sourceRefs: ["mock_github_release_001"]
+      }
+    });
+    const buildResponse = await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/build",
+      payload: {
+        policyId: "22222222-2222-4222-8222-222222222222",
+        rootType: "MilestoneMetrics"
+      }
+    });
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/publish",
+      payload: {
+        rootId: buildResponse.json().data.root.id
+      }
+    });
+
+    const forbiddenResponse = await app.inject({
+      method: "GET",
+      url: `/api/attestor/programs/${programId}/milestones/M1`
+    });
+    const proofInputResponse = await app.inject({
+      method: "GET",
+      url: `/api/attestor/programs/${programId}/milestones/M1`,
+      headers: {
+        "x-pact-role": "Project",
+        "x-pact-wallet": "GPROJECT"
+      }
+    });
+    const auditResponse = await app.inject({
+      method: "GET",
+      url: `/api/programs/${programId}/audit`
+    });
+
+    expect(forbiddenResponse.statusCode).toBe(403);
+    expect(proofInputResponse.statusCode).toBe(200);
+    expect(proofInputResponse.json().data.publicInputs.milestoneRoot).toMatch(
+      /^0x[0-9a-f]{64}$/
+    );
+    expect(proofInputResponse.json().data.privateInputs.activeUsers).toBe(735);
+    expect(JSON.stringify(auditResponse.json())).not.toContain("privateInputs");
+    expect(JSON.stringify(auditResponse.json())).not.toContain("735");
 
     await app.close();
   });

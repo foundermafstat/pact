@@ -2,9 +2,13 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type {
   CreateMilestoneEvidenceRequest,
+  MilestonePrivateInput,
+  MilestonePublicInput,
   MilestoneAttestationDto,
+  ProgramDto,
   RootDto,
-  RootType
+  RootType,
+  TrancheDto
 } from "@pact/shared";
 import { buildMerkleTree } from "@pact/zk";
 
@@ -21,6 +25,13 @@ export type PrivateMilestonePackage = {
 export type MilestoneRootBuildResult = {
   root: RootDto;
   commitments: `0x${string}`[];
+};
+
+export type MilestoneProofInputPackage = {
+  attestationId: string;
+  metricCommitment: `0x${string}`;
+  publicInputs: MilestonePublicInput;
+  privateInputs: MilestonePrivateInput;
 };
 
 const now = (): string => new Date().toISOString();
@@ -154,6 +165,77 @@ export class AttestorService {
 
     this.roots.set(root.id, publishedRoot);
     return publishedRoot;
+  }
+
+  public buildMilestoneProofInput(input: {
+    program: ProgramDto;
+    tranche: TrancheDto;
+  }): MilestoneProofInputPackage {
+    const attestation = [...this.attestations.values()].find(
+      (item) =>
+        item.programId === input.program.id &&
+        item.milestoneKey === input.tranche.milestoneKey &&
+        item.status === "Validated" &&
+        item.milestoneRoot !== null
+    );
+
+    if (!attestation || !attestation.milestoneRoot) {
+      throw new Error("Validated milestone attestation was not found");
+    }
+
+    const activeRoot = [...this.roots.values()].find(
+      (item) => item.root === attestation.milestoneRoot && item.status === "Active"
+    );
+    if (!activeRoot) {
+      throw new Error("Active milestone root was not found");
+    }
+
+    const rootPackages = [...this.privatePackages.values()]
+      .filter((item) => {
+        const packageAttestation = this.attestations.get(item.attestationId);
+        return packageAttestation?.milestoneRoot === activeRoot.root;
+      })
+      .sort((left, right) => left.metricCommitment.localeCompare(right.metricCommitment));
+    const packageIndex = rootPackages.findIndex(
+      (item) => item.attestationId === attestation.id
+    );
+    const privatePackage = rootPackages[packageIndex];
+    if (!privatePackage) {
+      throw new Error("Private milestone package was not found");
+    }
+
+    const tree = buildMerkleTree(rootPackages.map((item) => item.metricCommitment));
+    const proof = tree.getProof(packageIndex);
+    const nullifier = sha256Hex(
+      `milestone-nullifier:${input.program.id}:${input.tranche.milestoneKey}:${input.tranche.releaseToWallet}:${activeRoot.root}`
+    );
+
+    return {
+      attestationId: attestation.id,
+      metricCommitment: privatePackage.metricCommitment,
+      publicInputs: {
+        policyHash: attestation.publicPolicyHash,
+        milestoneRoot: activeRoot.root,
+        nullifier,
+        programId: input.program.id,
+        milestoneId: input.tranche.milestoneKey,
+        recipient: input.tranche.releaseToWallet,
+        trancheAmount: input.tranche.amount,
+        currentEpoch: Math.floor(Date.now() / 1000)
+      },
+      privateInputs: {
+        projectSecret: sha256Hex(`project:${input.program.projectWallet}`),
+        attestationSecret: privatePackage.metricSalt,
+        activeUsers: privatePackage.metrics.activeUsers,
+        pilotPartners: privatePackage.metrics.pilotPartners,
+        auditPassed: privatePackage.metrics.auditPassed,
+        metricSalts: [privatePackage.metricSalt],
+        attestationMerklePath: {
+          elements: proof.pathElements,
+          indices: proof.pathIndices
+        }
+      }
+    };
   }
 
   private validateMilestoneMetrics(input: CreateMilestoneEvidenceRequest): void {
