@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { buildApiServer } from "../src/server";
+import { attestorService } from "../src/services/attestor-service";
 import { issuerService } from "../src/services/issuer-service";
 import { proofJobService } from "../src/services/proof-job-service";
+import { programService } from "../src/services/program-service";
 
 const testConfig = {
   nodeEnv: "test",
@@ -16,8 +18,10 @@ const testConfig = {
 
 describe("Proof APIs", () => {
   beforeEach(() => {
+    attestorService.reset();
     issuerService.reset();
     proofJobService.reset();
+    programService.reset();
   });
 
   it("creates and completes a mock eligibility proof job", async () => {
@@ -69,6 +73,121 @@ describe("Proof APIs", () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json().error.code).toBe("credential_not_found");
+
+    await app.close();
+  });
+
+  it("creates and completes a mock milestone proof job", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const programResponse = await app.inject({
+      method: "POST",
+      url: "/api/programs",
+      payload: {
+        programKey: "PACT-DEMO-001",
+        sponsorWallet: "GSPONSOR",
+        projectWallet: "GPROJECT",
+        assetContract: "USDC",
+        totalAmount: "100000000",
+        eligibilityPolicyId: "eligibility-policy-1",
+        tranches: [
+          {
+            milestoneKey: "M1",
+            milestonePolicyId: "22222222-2222-4222-8222-222222222222",
+            amount: "50000000",
+            releaseToWallet: "GPROJECT"
+          }
+        ]
+      }
+    });
+    const programId = programResponse.json().data.program.id;
+
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-evidence/mock",
+      payload: {
+        programId,
+        milestoneKey: "M1",
+        metrics: {
+          activeUsers: 735,
+          pilotPartners: 4,
+          auditPassed: true
+        },
+        sourceRefs: ["mock_github_release_001"]
+      }
+    });
+    const buildResponse = await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/build",
+      payload: {
+        policyId: "22222222-2222-4222-8222-222222222222",
+        rootType: "MilestoneMetrics"
+      }
+    });
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/publish",
+      payload: {
+        rootId: buildResponse.json().data.root.id
+      }
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/proofs/milestone/generate",
+      payload: {
+        programId,
+        milestoneKey: "M1"
+      }
+    });
+
+    const body = response.json().data;
+    expect(response.statusCode).toBe(200);
+    expect(body.proofType).toBe("MilestoneUnlock");
+    expect(body.status).toBe("Succeeded");
+    expect(body.publicInputsJson.milestoneRoot).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(body.proofJson.mode).toBe("mock");
+    expect(JSON.stringify(body)).not.toContain("activeUsers");
+
+    await app.close();
+  });
+
+  it("rejects milestone proof jobs without active evidence root", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const programResponse = await app.inject({
+      method: "POST",
+      url: "/api/programs",
+      payload: {
+        programKey: "PACT-DEMO-002",
+        sponsorWallet: "GSPONSOR",
+        projectWallet: "GPROJECT",
+        assetContract: "USDC",
+        totalAmount: "100000000",
+        eligibilityPolicyId: "eligibility-policy-1",
+        tranches: [
+          {
+            milestoneKey: "M1",
+            milestonePolicyId: "22222222-2222-4222-8222-222222222222",
+            amount: "50000000",
+            releaseToWallet: "GPROJECT"
+          }
+        ]
+      }
+    });
+    const programId = programResponse.json().data.program.id;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/proofs/milestone/generate",
+      payload: {
+        programId,
+        milestoneKey: "M1"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("milestone_proof_input_unavailable");
 
     await app.close();
   });
