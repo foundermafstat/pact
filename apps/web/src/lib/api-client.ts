@@ -128,6 +128,13 @@ export class PactApiClient {
     });
   }
 
+  public revokeCredential(credentialId: string) {
+    return this.request(`/api/issuer/credentials/${credentialId}/revoke`, {
+      method: "POST",
+      schema: ApiSuccessResponseSchema(CredentialDtoSchema)
+    });
+  }
+
   public createMilestoneEvidence(input: CreateMilestoneEvidenceRequest) {
     return this.request("/api/attestor/milestone-evidence/mock", {
       method: "POST",
