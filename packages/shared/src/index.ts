@@ -1,5 +1,31 @@
 export const sharedPackageName = "@pact/shared";
 export {
+  AmountSchema,
+  ApiErrorResponseSchema,
+  ApiSuccessResponseSchema,
+  ContractEventDtoSchema,
+  CreateMilestoneEvidenceRequestSchema,
+  CreateMockCredentialRequestSchema,
+  CreatePolicyRequestSchema,
+  CreateProgramRequestSchema,
+  CredentialDtoSchema,
+  FundProgramRequestSchema,
+  GenerateProofRequestSchema,
+  MilestoneAttestationDtoSchema,
+  PolicyDtoSchema,
+  ProgramDtoSchema,
+  ProofJobDtoSchema,
+  RootBuildRequestSchema,
+  RootDtoSchema,
+  RootPublishRequestSchema,
+  StellarAddressSchema,
+  SubmitMilestoneProofRequestSchema,
+  TimestampSchema,
+  TrancheDtoSchema,
+  TransactionHashSchema,
+  UuidSchema
+} from "./api-dto";
+export {
   ACTION_TYPES,
   POLICY_STATUSES,
   POLICY_TYPES,
@@ -10,6 +36,22 @@ export {
   ROOT_TYPES,
   TRANCHE_STATUSES
 } from "./constants";
+export type {
+  ContractEventDto,
+  CreateMilestoneEvidenceRequest,
+  CreateMockCredentialRequest,
+  CreatePolicyRequest,
+  CreateProgramRequest,
+  CredentialDto,
+  GenerateProofRequest,
+  MilestoneAttestationDto,
+  PolicyDto,
+  ProgramDto,
+  ProofJobDto,
+  RootDto,
+  SubmitMilestoneProofRequest,
+  TrancheDto
+} from "./api-dto";
 export { canonicalizeJson } from "./canonical-json";
 export {
   EligibilityPrivateInputSchema,
