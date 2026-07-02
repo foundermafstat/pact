@@ -90,6 +90,9 @@ importers:
 
   packages/zk:
     dependencies:
+      '@noble/hashes':
+        specifier: ^2.0.1
+        version: 2.2.0
       '@pact/shared':
         specifier: workspace:*
         version: link:../shared
