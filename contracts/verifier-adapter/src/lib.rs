@@ -1,12 +1,21 @@
 #![no_std]
 
 use pact_contracts_shared::VerifierMode;
-use soroban_sdk::{contract, contractimpl, contracttype, BytesN, Env};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, panic_with_error, BytesN, Env,
+};
 
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
     Mode,
+}
+
+#[contracterror]
+#[derive(Clone, Copy, Eq, PartialEq)]
+#[repr(u32)]
+pub enum VerifierAdapterError {
+    RealVerifierNotConfigured = 1,
 }
 
 #[contract]
@@ -42,9 +51,15 @@ impl VerifierAdapter {
     }
 
     fn verify_mock(env: Env, proof: BytesN<32>, public_inputs: BytesN<32>) -> bool {
-        Self::get_mode(env.clone()) == VerifierMode::Mock
-            && proof == Self::mock_proof_marker(&env)
-            && public_inputs == Self::mock_public_inputs_marker(&env)
+        match Self::get_mode(env.clone()) {
+            VerifierMode::Mock => {
+                proof == Self::mock_proof_marker(&env)
+                    && public_inputs == Self::mock_public_inputs_marker(&env)
+            }
+            VerifierMode::Groth16Bn254 => {
+                panic_with_error!(&env, VerifierAdapterError::RealVerifierNotConfigured)
+            }
+        }
     }
 
     pub fn mock_proof_marker(env: &Env) -> BytesN<32> {
@@ -96,5 +111,18 @@ mod tests {
             &BytesN::from_array(&env, &[0x01; 32]),
             &VerifierAdapter::mock_public_inputs_marker(&env)
         ));
+    }
+
+    #[test]
+    #[should_panic]
+    fn real_verifier_mode_returns_configured_error() {
+        let env = Env::default();
+        let client = client(&env);
+        client.init(&VerifierMode::Groth16Bn254);
+
+        client.verify_milestone(
+            &VerifierAdapter::mock_proof_marker(&env),
+            &VerifierAdapter::mock_public_inputs_marker(&env),
+        );
     }
 }
