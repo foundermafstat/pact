@@ -351,6 +351,30 @@ select {
   font-size: 13px;
 }
 
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.timeline li {
+  border-left: 3px solid var(--accent);
+  padding: 8px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.timeline span,
+.timeline small {
+  color: var(--muted);
+}
+
+.compact-field {
+  min-width: min(420px, 100%);
+}
+
 .progress-track {
   height: 10px;
   border-radius: 999px;
