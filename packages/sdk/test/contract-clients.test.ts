@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  MilestoneEscrowClient,
+  MissingContractIdError,
+  PolicyRegistryClient,
+  type ContractInvocation,
+  type ContractInvocationTransport
+} from "../src/contracts";
+
+const createMockTransport = () => {
+  const invocations: ContractInvocation[] = [];
+  const transport: ContractInvocationTransport = {
+    invoke: async <T>(invocation: ContractInvocation) => {
+      invocations.push(invocation);
+      return { result: undefined as T };
+    }
+  };
+
+  return { invocations, transport };
+};
+
+describe("contract clients", () => {
+  it("builds typed MilestoneEscrow invocations", async () => {
+    const { invocations, transport } = createMockTransport();
+    const client = new MilestoneEscrowClient("escrow-id", transport);
+
+    await client.createProgram({
+      programId: "program-1",
+      project: "GPROJECT",
+      asset: "asset-id",
+      totalAmount: "1000",
+      eligibilityPolicyId: "policy-1"
+    });
+
+    expect(invocations).toEqual([
+      {
+        contractId: "escrow-id",
+        method: "create_program",
+        args: ["program-1", "GPROJECT", "asset-id", "1000", "policy-1"]
+      }
+    ]);
+  });
+
+  it("builds typed PolicyRegistry invocations", async () => {
+    const { invocations, transport } = createMockTransport();
+    const client = new PolicyRegistryClient("policy-id", transport);
+
+    await client.activatePolicy("policy-1");
+
+    expect(invocations).toEqual([
+      {
+        contractId: "policy-id",
+        method: "activate_policy",
+        args: ["policy-1"]
+      }
+    ]);
+  });
+
+  it("rejects missing contract ids", () => {
+    const { transport } = createMockTransport();
+    expect(() => new MilestoneEscrowClient(undefined, transport)).toThrow(
+      MissingContractIdError
+    );
+  });
+});

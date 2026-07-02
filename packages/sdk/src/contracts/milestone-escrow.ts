@@ -1,0 +1,49 @@
+import type { ContractInvocationTransport } from "./transport";
+import { assertContractId } from "./transport";
+
+export class MilestoneEscrowClient {
+  private readonly contractId: string;
+
+  public constructor(
+    contractId: string | undefined,
+    private readonly transport: ContractInvocationTransport
+  ) {
+    this.contractId = assertContractId("MilestoneEscrow", contractId);
+  }
+
+  public createProgram(args: {
+    programId: string;
+    project: string;
+    asset: string;
+    totalAmount: string;
+    eligibilityPolicyId: string;
+  }) {
+    return this.transport.invoke<void>({
+      contractId: this.contractId,
+      method: "create_program",
+      args: [
+        args.programId,
+        args.project,
+        args.asset,
+        args.totalAmount,
+        args.eligibilityPolicyId
+      ]
+    });
+  }
+
+  public fundProgram(programId: string, amount: string) {
+    return this.transport.invoke<void>({
+      contractId: this.contractId,
+      method: "fund_program",
+      args: [programId, amount]
+    });
+  }
+
+  public activateProgram(programId: string) {
+    return this.transport.invoke<void>({
+      contractId: this.contractId,
+      method: "activate_program",
+      args: [programId]
+    });
+  }
+}
