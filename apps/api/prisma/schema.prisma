@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProgramStatus {
+  Draft
+  Active
+  Paused
+  Cancelled
+  Completed
+}
+
+enum TrancheStatus {
+  Locked
+  Ready
+  Released
+  Cancelled
+}
+
+enum PolicyType {
+  Eligibility
+  Milestone
+  AssetAction
+}
+
+enum PolicyStatus {
+  Draft
+  Active
+  Paused
+  Deprecated
+}
+
+enum RootType {
+  Credential
+  MilestoneMetrics
+  Revocation
+}
+
+enum RootStatus {
+  Pending
+  Active
+  Inactive
+  Expired
+}
+
+enum CredentialStatus {
+  Active
+  Revoked
+  Expired
+}
+
+enum MilestoneAttestationStatus {
+  Pending
+  Validated
+  Rejected
+  Published
+}
+
+enum ProofType {
+  Eligibility
+  MilestoneUnlock
+}
+
+enum ProofJobStatus {
+  Queued
+  Running
+  Succeeded
+  Failed
+}
+
+model Program {
+  id                  String   @id @default(uuid()) @db.Uuid
+  programKey          String   @unique @map("program_key")
+  sponsorWallet       String   @map("sponsor_wallet")
+  projectWallet       String   @map("project_wallet")
+  assetContract       String   @map("asset_contract")
+  totalAmount         Decimal  @map("total_amount")
+  fundedAmount        Decimal  @default(0) @map("funded_amount")
+  status              ProgramStatus
+  eligibilityPolicyId String   @map("eligibility_policy_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  tranches              Tranche[]
+  milestoneAttestations MilestoneAttestation[]
+
+  @@map("programs")
+}
+
+model Tranche {
+  id                String        @id @default(uuid()) @db.Uuid
+  programId         String        @map("program_id") @db.Uuid
+  milestoneKey      String        @map("milestone_key")
+  milestonePolicyId String        @map("milestone_policy_id")
+  amount            Decimal
+  releaseToWallet   String        @map("release_to_wallet")
+  status            TrancheStatus
+  releasedAt        DateTime?     @map("released_at")
+  txHash            String?       @map("tx_hash")
+
+  program Program @relation(fields: [programId], references: [id])
+
+  @@unique([programId, milestoneKey])
+  @@map("tranches")
+}
+
+model Policy {
+  id            String       @id @default(uuid()) @db.Uuid
+  policyKey     String       @unique @map("policy_key")
+  policyHash    String       @map("policy_hash")
+  policyType    PolicyType   @map("policy_type")
+  status        PolicyStatus
+  rawPolicyJson Json         @map("raw_policy_json")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  roots Root[]
+
+  @@map("policies")
+}
+
+model Root {
+  id         String     @id @default(uuid()) @db.Uuid
+  policyId   String     @map("policy_id") @db.Uuid
+  root       String
+  rootType   RootType   @map("root_type")
+  epoch      Int
+  status     RootStatus
+  txHash     String?    @map("tx_hash")
+  validFrom  DateTime   @map("valid_from")
+  validUntil DateTime   @map("valid_until")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  policy Policy @relation(fields: [policyId], references: [id])
+
+  @@index([policyId, rootType, status])
+  @@map("roots")
+}
+
+model Credential {
+  id                String           @id @default(uuid()) @db.Uuid
+  credentialKey     String           @unique @map("credential_key")
+  wallet            String
+  subjectCommitment String           @map("subject_commitment")
+  issuerId          String           @map("issuer_id")
+  credentialLeaf    String           @map("credential_leaf")
+  status            CredentialStatus
+  expiresAt         DateTime         @map("expires_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  @@index([wallet, status])
+  @@map("credentials")
+}
+
+model MilestoneAttestation {
+  id                      String                     @id @default(uuid()) @db.Uuid
+  programId               String                     @map("program_id") @db.Uuid
+  milestoneKey            String                     @map("milestone_key")
+  milestoneRoot           String?                    @map("milestone_root")
+  privateMetricsEncrypted String                     @map("private_metrics_encrypted")
+  publicPolicyHash        String                     @map("public_policy_hash")
+  attestorId              String                     @map("attestor_id")
+  status                  MilestoneAttestationStatus
+  txHash                  String?                    @map("tx_hash")
+  createdAt               DateTime                   @default(now()) @map("created_at")
+
+  program Program @relation(fields: [programId], references: [id])
+
+  @@index([programId, milestoneKey, status])
+  @@map("milestone_attestations")
+}
+
+model ProofJob {
+  id               String         @id @default(uuid()) @db.Uuid
+  proofType        ProofType      @map("proof_type")
+  status           ProofJobStatus
+  requestJson      Json           @map("request_json")
+  publicInputsJson Json?          @map("public_inputs_json")
+  proofJson        Json?          @map("proof_json")
+  error            String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  completedAt      DateTime?      @map("completed_at")
+
+  @@index([proofType, status])
+  @@map("proof_jobs")
+}
+
+model ContractEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  contractId String   @map("contract_id")
+  eventType  String   @map("event_type")
+  txHash     String   @map("tx_hash")
+  ledger     Int
+  payload    Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([txHash, eventType])
+  @@index([contractId, ledger])
+  @@map("contract_events")
+}
