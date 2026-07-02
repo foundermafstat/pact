@@ -823,6 +823,24 @@ mod tests {
 
     #[test]
     #[should_panic]
+    fn wrong_program_milestone_proof_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 99),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &milestone_inputs(&env, &release_to),
+        );
+    }
+
+    #[test]
+    #[should_panic]
     fn replayed_milestone_nullifier_fails() {
         let env = Env::default();
         let client = client(&env);
