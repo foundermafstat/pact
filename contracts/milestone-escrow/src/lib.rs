@@ -12,6 +12,20 @@ pub enum DataKey {
     Tranche(BytesN<32>, BytesN<32>),
     TrancheCount(BytesN<32>),
     TrancheTotal(BytesN<32>),
+    EligibilityVerified(BytesN<32>),
+    EligibilityNullifier(BytesN<32>),
+    PolicyActive(BytesN<32>),
+    RootActive(BytesN<32>),
+}
+
+#[contracttype]
+#[derive(Clone, Eq, PartialEq)]
+pub struct EligibilityPublicInputs {
+    pub policy_id: BytesN<32>,
+    pub policy_hash: BytesN<32>,
+    pub credential_root: BytesN<32>,
+    pub nullifier: BytesN<32>,
+    pub account_binding: Address,
 }
 
 #[contracterror]
@@ -28,6 +42,11 @@ pub enum MilestoneEscrowError {
     NoTranches = 8,
     TrancheTotalMismatch = 9,
     InvalidProgramStatus = 10,
+    InactivePolicy = 11,
+    InactiveRoot = 12,
+    InvalidProof = 13,
+    NullifierAlreadyUsed = 14,
+    WrongAccountBinding = 15,
 }
 
 #[contract]
@@ -168,6 +187,69 @@ impl MilestoneEscrow {
         env.storage().persistent().set(&key, &program);
     }
 
+    pub fn set_policy_active(env: Env, policy_id: BytesN<32>, active: bool) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::PolicyActive(policy_id), &active);
+    }
+
+    pub fn set_root_active(env: Env, root: BytesN<32>, active: bool) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::RootActive(root), &active);
+    }
+
+    pub fn submit_project_eligibility(
+        env: Env,
+        program_id: BytesN<32>,
+        proof: BytesN<32>,
+        public_inputs: EligibilityPublicInputs,
+    ) {
+        let program = Self::read_program(&env, program_id.clone());
+
+        if program.status != ProgramStatus::Active {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidProgramStatus);
+        }
+
+        if !Self::read_bool(&env, DataKey::PolicyActive(public_inputs.policy_id.clone())) {
+            panic_with_error!(&env, MilestoneEscrowError::InactivePolicy);
+        }
+
+        if !Self::read_bool(&env, DataKey::RootActive(public_inputs.credential_root.clone())) {
+            panic_with_error!(&env, MilestoneEscrowError::InactiveRoot);
+        }
+
+        if Self::read_bool(
+            &env,
+            DataKey::EligibilityNullifier(public_inputs.nullifier.clone()),
+        ) {
+            panic_with_error!(&env, MilestoneEscrowError::NullifierAlreadyUsed);
+        }
+
+        if public_inputs.account_binding != program.project {
+            panic_with_error!(&env, MilestoneEscrowError::WrongAccountBinding);
+        }
+
+        if proof != Self::mock_proof_marker(&env) {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidProof);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::EligibilityNullifier(public_inputs.nullifier), &true);
+        env.storage()
+            .persistent()
+            .set(&DataKey::EligibilityVerified(program_id), &true);
+    }
+
+    pub fn is_project_eligible(env: Env, program_id: BytesN<32>) -> bool {
+        Self::read_bool(&env, DataKey::EligibilityVerified(program_id))
+    }
+
+    pub fn mock_proof_marker(env: &Env) -> BytesN<32> {
+        BytesN::from_array(env, &[0xA5; 32])
+    }
+
     fn read_program(env: &Env, program_id: BytesN<32>) -> Program {
         env.storage()
             .persistent()
@@ -195,6 +277,10 @@ impl MilestoneEscrow {
             .get(&DataKey::TrancheTotal(program_id))
             .unwrap_or(0)
     }
+
+    fn read_bool(env: &Env, key: DataKey) -> bool {
+        env.storage().persistent().get(&key).unwrap_or(false)
+    }
 }
 
 #[cfg(test)]
@@ -202,7 +288,7 @@ extern crate std;
 
 #[cfg(test)]
 mod tests {
-    use super::{MilestoneEscrow, MilestoneEscrowClient};
+    use super::{EligibilityPublicInputs, MilestoneEscrow, MilestoneEscrowClient};
     use pact_contracts_shared::{ProgramStatus, TrancheStatus};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
@@ -381,5 +467,107 @@ mod tests {
         client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
         client.fund_program(&id(&env, 1), &1000);
         client.activate_program(&id(&env, 1));
+    }
+
+    fn active_program_with_policy_and_root(
+        env: &Env,
+        client: &MilestoneEscrowClient<'_>,
+        project: &Address,
+        asset: &Address,
+        release_to: &Address,
+    ) {
+        client.create_program(&id(env, 1), project, asset, &1000, &id(env, 2));
+        client.add_tranche(&id(env, 1), &id(env, 3), &id(env, 4), &1000, release_to);
+        client.fund_program(&id(env, 1), &1000);
+        client.activate_program(&id(env, 1));
+        client.set_policy_active(&id(env, 2), &true);
+        client.set_root_active(&id(env, 5), &true);
+    }
+
+    fn eligibility_inputs(env: &Env, project: &Address) -> EligibilityPublicInputs {
+        EligibilityPublicInputs {
+            policy_id: id(env, 2),
+            policy_hash: id(env, 6),
+            credential_root: id(env, 5),
+            nullifier: id(env, 7),
+            account_binding: project.clone(),
+        }
+    }
+
+    #[test]
+    fn valid_eligibility_submission_marks_project_eligible() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        active_program_with_policy_and_root(&env, &client, &project, &asset, &release_to);
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &eligibility_inputs(&env, &project),
+        );
+
+        assert!(client.is_project_eligible(&id(&env, 1)));
+    }
+
+    #[test]
+    #[should_panic]
+    fn replayed_eligibility_nullifier_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+        let inputs = eligibility_inputs(&env, &project);
+
+        active_program_with_policy_and_root(&env, &client, &project, &asset, &release_to);
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &inputs,
+        );
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &inputs,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn inactive_policy_fails_eligibility_submission() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        active_program_with_policy_and_root(&env, &client, &project, &asset, &release_to);
+        client.set_policy_active(&id(&env, 2), &false);
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &eligibility_inputs(&env, &project),
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn inactive_root_fails_eligibility_submission() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        active_program_with_policy_and_root(&env, &client, &project, &asset, &release_to);
+        client.set_root_active(&id(&env, 5), &false);
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &eligibility_inputs(&env, &project),
+        );
     }
 }
