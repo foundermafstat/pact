@@ -8,4 +8,5 @@ version.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+pact-contracts-shared.workspace = true
 soroban-sdk.workspace = true

@@ -654,6 +654,7 @@ dependencies = [
 name = "gated-asset-controller"
 version = "0.1.0"
 dependencies = [
+ "pact-contracts-shared",
  "soroban-sdk",
 ]
 
@@ -907,6 +908,7 @@ checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
 name = "milestone-escrow"
 version = "0.1.0"
 dependencies = [
+ "pact-contracts-shared",
  "soroban-sdk",
 ]
 
@@ -914,6 +916,7 @@ dependencies = [
 name = "nullifier-registry"
 version = "0.1.0"
 dependencies = [
+ "pact-contracts-shared",
  "soroban-sdk",
 ]
 
@@ -981,6 +984,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pact-contracts-shared"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1006,6 +1016,7 @@ dependencies = [
 name = "policy-registry"
 version = "0.1.0"
 dependencies = [
+ "pact-contracts-shared",
  "soroban-sdk",
 ]
 
@@ -1125,6 +1136,7 @@ dependencies = [
 name = "root-registry"
 version = "0.1.0"
 dependencies = [
+ "pact-contracts-shared",
  "soroban-sdk",
 ]
 
@@ -1665,6 +1677,7 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 name = "verifier-adapter"
 version = "0.1.0"
 dependencies = [
+ "pact-contracts-shared",
  "soroban-sdk",
 ]
 

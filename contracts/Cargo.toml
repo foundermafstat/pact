@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "shared",
   "policy-registry",
   "root-registry",
   "nullifier-registry",
@@ -15,4 +16,5 @@ license = "MIT"
 version = "0.1.0"
 
 [workspace.dependencies]
+pact-contracts-shared = { path = "shared" }
 soroban-sdk = "27.0.0-rc.1"
