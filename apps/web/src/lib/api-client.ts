@@ -41,6 +41,19 @@ const ProgramRecordResponseSchema = {
   }
 };
 
+const MockCredentialResponseSchema = {
+  parse: (value: unknown) => {
+    const data = (value as { data?: { credential?: unknown; privateCredentialPackage?: unknown } })
+      .data;
+    return {
+      data: {
+        credential: CredentialDtoSchema.parse(data?.credential),
+        privateCredentialPackage: data?.privateCredentialPackage
+      }
+    };
+  }
+};
+
 const UnknownSuccessSchema = {
   parse: (value: unknown) => value
 };
@@ -95,9 +108,7 @@ export class PactApiClient {
     return this.request("/api/issuer/credentials/mock", {
       method: "POST",
       body: CreateMockCredentialRequestSchema.parse(input),
-      schema: ApiSuccessResponseSchema(
-        CredentialDtoSchema.pick({ id: true }).passthrough()
-      )
+      schema: MockCredentialResponseSchema
     });
   }
 

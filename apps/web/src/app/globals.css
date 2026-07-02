@@ -318,6 +318,23 @@ select {
   gap: 14px;
 }
 
+.workflow-panel {
+  display: grid;
+  gap: 14px;
+  max-width: 720px;
+}
+
+.workflow-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.workflow-status strong {
+  color: var(--accent-strong);
+}
+
 .progress-track {
   height: 10px;
   border-radius: 999px;
