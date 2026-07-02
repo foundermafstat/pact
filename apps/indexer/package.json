@@ -1,0 +1,15 @@
+{
+  "name": "@pact/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pact/shared": "workspace:*",
+    "dotenv": "^17.2.3"
+  }
+}
