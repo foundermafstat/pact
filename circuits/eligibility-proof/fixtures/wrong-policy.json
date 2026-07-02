@@ -1,0 +1,23 @@
+{
+  "credentialSecret": "1",
+  "credentialSalt": "2",
+  "subjectId": "3",
+  "jurisdictionCode": "840",
+  "isAccredited": "1",
+  "isNonUs": "0",
+  "sanctionsPassed": "1",
+  "expiresAt": "2000",
+  "issuerId": "7",
+  "merklePathElements": ["999", "123", "0", "0", "0", "0", "0", "0"],
+  "merklePathIndices": ["0", "0", "0", "0", "0", "0", "0", "0"],
+  "policyHash": "124",
+  "credentialRoot": "999",
+  "nullifier": "55",
+  "chainId": "1",
+  "contractId": "2",
+  "marketId": "3",
+  "assetId": "4",
+  "actionType": "1",
+  "accountBinding": "88",
+  "currentEpoch": "1000"
+}

@@ -11,6 +11,7 @@
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
     "zk:compile:eligibility": "bash circuits/scripts/compile-eligibility.sh",
+    "zk:test:eligibility": "bash circuits/scripts/test-eligibility.sh",
     "deploy:contracts": "tsx scripts/deploy/contracts.ts"
   },
   "devDependencies": {
