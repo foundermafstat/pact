@@ -6,9 +6,11 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@pact/shared": "workspace:*"
+    "@pact/shared": "workspace:*",
+    "@stellar/stellar-sdk": "^14.3.1"
   }
 }
