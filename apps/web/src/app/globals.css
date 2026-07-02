@@ -331,6 +331,50 @@ select {
   background: var(--accent);
 }
 
+.table-wrap {
+  overflow-x: auto;
+}
+
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.status-table th,
+.status-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.status-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.status-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #eef2f7;
+  color: #344054;
+  font-size: 12px;
+}
+
+.status-released,
+.status-ready {
+  background: #e6f4f1;
+  color: var(--accent-strong);
+}
+
+.status-rejected,
+.status-cancelled {
+  background: #fdecea;
+  color: var(--danger);
+}
+
 .success-text {
   color: var(--accent-strong);
 }
