@@ -12,9 +12,26 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  apps/api: {}
+  apps/api:
+    dependencies:
+      '@pact/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@pact/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@pact/zk':
+        specifier: workspace:*
+        version: link:../../packages/zk
 
-  apps/web: {}
+  apps/web:
+    dependencies:
+      '@pact/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@pact/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
   packages/sdk:
     dependencies:
