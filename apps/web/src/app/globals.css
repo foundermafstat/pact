@@ -97,6 +97,39 @@ select {
   color: var(--muted);
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wallet-button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.wallet-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.wallet-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.wallet-panel strong {
+  color: var(--warn);
+  font-weight: 600;
+}
+
 .content {
   padding: 28px;
   max-width: 1180px;

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { WalletConnect } from "../components/wallet-connect";
 import { webEnv } from "../config/env";
 import "./globals.css";
 
@@ -43,7 +44,10 @@ export default function RootLayout({
           <main className="main">
             <div className="topbar">
               <small>Network: {webEnv.stellarNetwork}</small>
-              <small>API: {webEnv.apiUrl}</small>
+              <div className="topbar-actions">
+                <small>API: {webEnv.apiUrl}</small>
+                <WalletConnect targetNetwork={webEnv.stellarNetwork} />
+              </div>
             </div>
             <div className="content">{children}</div>
           </main>
