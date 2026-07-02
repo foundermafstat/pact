@@ -8,6 +8,7 @@ use soroban_sdk::{
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
+    Admin,
     Policy(BytesN<32>),
 }
 
@@ -18,6 +19,8 @@ pub enum PolicyRegistryError {
     PolicyAlreadyExists = 1,
     PolicyNotFound = 2,
     InvalidValidityWindow = 3,
+    AlreadyInitialized = 4,
+    AdminNotInitialized = 5,
 }
 
 #[contract]
@@ -33,6 +36,20 @@ impl PolicyRegistry {
         PolicyStatus::Draft
     }
 
+    pub fn init(env: Env, admin: Address) {
+        let key = DataKey::Admin;
+        if env.storage().persistent().has(&key) {
+            panic_with_error!(&env, PolicyRegistryError::AlreadyInitialized);
+        }
+
+        admin.require_auth();
+        env.storage().persistent().set(&key, &admin);
+    }
+
+    pub fn get_admin(env: Env) -> Address {
+        Self::read_admin(&env)
+    }
+
     pub fn create_policy(
         env: Env,
         policy_id: BytesN<32>,
@@ -46,6 +63,8 @@ impl PolicyRegistry {
             panic_with_error!(&env, PolicyRegistryError::InvalidValidityWindow);
         }
 
+        Self::require_admin(&env);
+
         let key = DataKey::Policy(policy_id.clone());
         if env.storage().persistent().has(&key) {
             panic_with_error!(&env, PolicyRegistryError::PolicyAlreadyExists);
@@ -56,7 +75,7 @@ impl PolicyRegistry {
             policy_hash,
             policy_type,
             status: PolicyStatus::Draft,
-            issuer: env.current_contract_address(),
+            issuer: Self::read_admin(&env),
             verifier,
             valid_from,
             valid_until,
@@ -67,14 +86,17 @@ impl PolicyRegistry {
     }
 
     pub fn activate_policy(env: Env, policy_id: BytesN<32>) {
+        Self::require_admin(&env);
         Self::set_policy_status(env, policy_id, PolicyStatus::Active);
     }
 
     pub fn pause_policy(env: Env, policy_id: BytesN<32>) {
+        Self::require_admin(&env);
         Self::set_policy_status(env, policy_id, PolicyStatus::Paused);
     }
 
     pub fn deprecate_policy(env: Env, policy_id: BytesN<32>) {
+        Self::require_admin(&env);
         Self::set_policy_status(env, policy_id, PolicyStatus::Deprecated);
     }
 
@@ -109,6 +131,18 @@ impl PolicyRegistry {
             .get(&DataKey::Policy(policy_id))
             .unwrap_or_else(|| panic_with_error!(env, PolicyRegistryError::PolicyNotFound))
     }
+
+    fn read_admin(env: &Env) -> Address {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic_with_error!(env, PolicyRegistryError::AdminNotInitialized))
+    }
+
+    fn require_admin(env: &Env) {
+        let admin = Self::read_admin(env);
+        admin.require_auth();
+    }
 }
 
 #[cfg(test)]
@@ -129,10 +163,18 @@ mod tests {
         PolicyRegistryClient::new(env, &contract_id)
     }
 
+    fn initialized_client(env: &Env) -> PolicyRegistryClient<'_> {
+        env.mock_all_auths();
+        let client = client(env);
+        let admin = Address::generate(env);
+        client.init(&admin);
+        client
+    }
+
     #[test]
     fn creates_and_reads_policy() {
         let env = Env::default();
-        let client = client(&env);
+        let client = initialized_client(&env);
         let verifier = Address::generate(&env);
 
         client.create_policy(
@@ -155,7 +197,7 @@ mod tests {
     #[test]
     fn supports_policy_lifecycle() {
         let env = Env::default();
-        let client = client(&env);
+        let client = initialized_client(&env);
         let verifier = Address::generate(&env);
 
         client.create_policy(
@@ -176,5 +218,24 @@ mod tests {
         client.deprecate_policy(&id(&env, 1));
         let policy = client.get_policy(&id(&env, 1));
         assert!(matches!(policy.status, PolicyStatus::Deprecated));
+    }
+
+    #[test]
+    #[should_panic]
+    fn write_methods_require_admin_auth() {
+        let env = Env::default();
+        let client = initialized_client(&env);
+        let verifier = Address::generate(&env);
+
+        env.set_auths(&[]);
+
+        client.create_policy(
+            &id(&env, 1),
+            &id(&env, 2),
+            &PolicyType::Eligibility,
+            &verifier,
+            &100,
+            &200,
+        );
     }
 }
