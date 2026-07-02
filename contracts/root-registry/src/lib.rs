@@ -87,6 +87,8 @@ impl RootRegistry {
         record.policy_id == policy_id
             && record.root_type == root_type
             && record.status == RootStatus::Active
+            && record.valid_from <= _now
+            && _now <= record.valid_until
     }
 
     pub fn get_current_root(env: Env, policy_id: BytesN<32>, root_type: RootType) -> RootRecord {
@@ -168,6 +170,34 @@ mod tests {
             &id(&env, 2),
             &RootType::MilestoneMetrics,
             &150
+        ));
+    }
+
+    #[test]
+    fn rejects_roots_outside_validity_window() {
+        let env = Env::default();
+        let client = client(&env);
+
+        client.activate_root(
+            &id(&env, 1),
+            &id(&env, 2),
+            &RootType::Credential,
+            &1,
+            &100,
+            &200,
+        );
+
+        assert!(!client.is_root_active(
+            &id(&env, 1),
+            &id(&env, 2),
+            &RootType::Credential,
+            &99
+        ));
+        assert!(!client.is_root_active(
+            &id(&env, 1),
+            &id(&env, 2),
+            &RootType::Credential,
+            &201
         ));
     }
 }
