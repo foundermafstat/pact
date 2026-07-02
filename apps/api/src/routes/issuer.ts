@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import {
   CreateMockCredentialRequestSchema,
-  RootBuildRequestSchema
+  RootBuildRequestSchema,
+  RootPublishRequestSchema
 } from "@pact/shared";
 
 import { notImplementedHandler } from "./not-implemented";
@@ -29,6 +30,14 @@ export const registerIssuerRoutes = async (app: FastifyInstance): Promise<void> 
       );
     }
   });
-  app.post("/api/issuer/roots/publish", notImplementedHandler);
+  app.post("/api/issuer/roots/publish", async (request) => {
+    const body = RootPublishRequestSchema.parse(request.body);
+    const root = issuerService.publishRoot(body.rootId);
+    if (!root) {
+      throw new ApiError(404, "root_not_found", "Root was not found");
+    }
+
+    return { data: root };
+  });
   app.post("/api/issuer/credentials/:credentialId/revoke", notImplementedHandler);
 };

@@ -109,6 +109,22 @@ export class IssuerService {
     this.roots.set(root.id, root);
     return root;
   }
+
+  public publishRoot(rootId: string): RootDto | undefined {
+    const root = this.roots.get(rootId);
+    if (!root) {
+      return undefined;
+    }
+
+    const publishedRoot = {
+      ...root,
+      status: "Active" as const,
+      txHash: sha256Hex(`publish:${root.id}:${root.root}`)
+    };
+
+    this.roots.set(root.id, publishedRoot);
+    return publishedRoot;
+  }
 }
 
 export const issuerService = new IssuerService();

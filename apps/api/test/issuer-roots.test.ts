@@ -50,4 +50,44 @@ describe("Issuer root APIs", () => {
 
     await app.close();
   });
+
+  it("publishes a built credential root", async () => {
+    const app = await buildApiServer(testConfig);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/issuer/credentials/mock",
+      payload: {
+        wallet: "GPROJECT",
+        isAccredited: true,
+        isNonUs: false,
+        jurisdictionCode: "US",
+        sanctionsPassed: true,
+        expiresAt: 1785600000
+      }
+    });
+
+    const buildResponse = await app.inject({
+      method: "POST",
+      url: "/api/issuer/roots/build",
+      payload: {
+        policyId,
+        rootType: "Credential"
+      }
+    });
+
+    const publishResponse = await app.inject({
+      method: "POST",
+      url: "/api/issuer/roots/publish",
+      payload: {
+        rootId: buildResponse.json().data.id
+      }
+    });
+
+    expect(publishResponse.statusCode).toBe(200);
+    expect(publishResponse.json().data.status).toBe("Active");
+    expect(publishResponse.json().data.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+    await app.close();
+  });
 });
