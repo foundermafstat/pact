@@ -10,6 +10,8 @@ use soroban_sdk::{
 pub enum DataKey {
     Program(BytesN<32>),
     Tranche(BytesN<32>, BytesN<32>),
+    TrancheCount(BytesN<32>),
+    TrancheTotal(BytesN<32>),
 }
 
 #[contracterror]
@@ -22,6 +24,10 @@ pub enum MilestoneEscrowError {
     TrancheAlreadyExists = 4,
     TrancheNotFound = 5,
     Overfunded = 6,
+    ProgramNotFunded = 7,
+    NoTranches = 8,
+    TrancheTotalMismatch = 9,
+    InvalidProgramStatus = 10,
 }
 
 #[contract]
@@ -93,7 +99,7 @@ impl MilestoneEscrow {
         }
 
         let tranche = Tranche {
-            program_id,
+            program_id: program_id.clone(),
             milestone_id,
             milestone_policy_id,
             amount,
@@ -103,6 +109,18 @@ impl MilestoneEscrow {
         };
 
         env.storage().persistent().set(&key, &tranche);
+
+        let tranche_count_key = DataKey::TrancheCount(program_id.clone());
+        let tranche_total_key = DataKey::TrancheTotal(program_id.clone());
+        let tranche_count = Self::read_tranche_count(&env, program_id.clone()) + 1;
+        let tranche_total = Self::read_tranche_total(&env, program_id) + amount;
+
+        env.storage()
+            .persistent()
+            .set(&tranche_count_key, &tranche_count);
+        env.storage()
+            .persistent()
+            .set(&tranche_total_key, &tranche_total);
     }
 
     pub fn get_tranche(env: Env, program_id: BytesN<32>, milestone_id: BytesN<32>) -> Tranche {
@@ -126,6 +144,30 @@ impl MilestoneEscrow {
         env.storage().persistent().set(&key, &program);
     }
 
+    pub fn activate_program(env: Env, program_id: BytesN<32>) {
+        let key = DataKey::Program(program_id.clone());
+        let mut program = Self::read_program(&env, program_id.clone());
+
+        if program.status != ProgramStatus::Draft {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidProgramStatus);
+        }
+
+        if program.funded_amount < program.total_amount {
+            panic_with_error!(&env, MilestoneEscrowError::ProgramNotFunded);
+        }
+
+        if Self::read_tranche_count(&env, program_id.clone()) == 0 {
+            panic_with_error!(&env, MilestoneEscrowError::NoTranches);
+        }
+
+        if Self::read_tranche_total(&env, program_id) != program.total_amount {
+            panic_with_error!(&env, MilestoneEscrowError::TrancheTotalMismatch);
+        }
+
+        program.status = ProgramStatus::Active;
+        env.storage().persistent().set(&key, &program);
+    }
+
     fn read_program(env: &Env, program_id: BytesN<32>) -> Program {
         env.storage()
             .persistent()
@@ -138,6 +180,20 @@ impl MilestoneEscrow {
             .persistent()
             .get(&DataKey::Tranche(program_id, milestone_id))
             .unwrap_or_else(|| panic_with_error!(env, MilestoneEscrowError::TrancheNotFound))
+    }
+
+    fn read_tranche_count(env: &Env, program_id: BytesN<32>) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::TrancheCount(program_id))
+            .unwrap_or(0)
+    }
+
+    fn read_tranche_total(env: &Env, program_id: BytesN<32>) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::TrancheTotal(program_id))
+            .unwrap_or(0)
     }
 }
 
@@ -280,5 +336,50 @@ mod tests {
 
         client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
         client.fund_program(&id(&env, 1), &1001);
+    }
+
+    #[test]
+    fn activates_funded_program_with_matching_tranches() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
+        client.add_tranche(&id(&env, 1), &id(&env, 3), &id(&env, 4), &1000, &release_to);
+        client.fund_program(&id(&env, 1), &1000);
+        client.activate_program(&id(&env, 1));
+
+        let program = client.get_program(&id(&env, 1));
+        assert!(matches!(program.status, ProgramStatus::Active));
+    }
+
+    #[test]
+    #[should_panic]
+    fn underfunded_program_activation_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
+        client.add_tranche(&id(&env, 1), &id(&env, 3), &id(&env, 4), &1000, &release_to);
+        client.fund_program(&id(&env, 1), &999);
+        client.activate_program(&id(&env, 1));
+    }
+
+    #[test]
+    #[should_panic]
+    fn activation_without_tranches_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+
+        client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
+        client.fund_program(&id(&env, 1), &1000);
+        client.activate_program(&id(&env, 1));
     }
 }
