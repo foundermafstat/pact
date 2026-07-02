@@ -204,6 +204,14 @@ impl MilestoneEscrow {
         env.storage().persistent().set(&key, &program);
     }
 
+    pub fn pause_program(env: Env, program_id: BytesN<32>) {
+        Self::set_program_status(env, program_id, ProgramStatus::Paused);
+    }
+
+    pub fn cancel_program(env: Env, program_id: BytesN<32>) {
+        Self::set_program_status(env, program_id, ProgramStatus::Cancelled);
+    }
+
     pub fn set_policy_active(env: Env, policy_id: BytesN<32>, active: bool) {
         env.storage()
             .persistent()
@@ -359,6 +367,13 @@ impl MilestoneEscrow {
             .persistent()
             .get(&DataKey::Program(program_id))
             .unwrap_or_else(|| panic_with_error!(env, MilestoneEscrowError::ProgramNotFound))
+    }
+
+    fn set_program_status(env: Env, program_id: BytesN<32>, status: ProgramStatus) {
+        let key = DataKey::Program(program_id.clone());
+        let mut program = Self::read_program(&env, program_id);
+        program.status = status;
+        env.storage().persistent().set(&key, &program);
     }
 
     fn read_tranche(env: &Env, program_id: BytesN<32>, milestone_id: BytesN<32>) -> Tranche {
@@ -830,6 +845,44 @@ mod tests {
             &milestone_inputs(&env, &release_to),
         );
         client.release_tranche(&id(&env, 1), &id(&env, 3));
+        client.release_tranche(&id(&env, 1), &id(&env, 3));
+    }
+
+    #[test]
+    #[should_panic]
+    fn paused_program_rejects_eligibility_submission() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        active_program_with_policy_and_root(&env, &client, &project, &asset, &release_to);
+        client.pause_program(&id(&env, 1));
+        client.submit_project_eligibility(
+            &id(&env, 1),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &eligibility_inputs(&env, &project),
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn cancelled_program_rejects_release() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &milestone_inputs(&env, &release_to),
+        );
+        client.cancel_program(&id(&env, 1));
         client.release_tranche(&id(&env, 1), &id(&env, 3));
     }
 }
