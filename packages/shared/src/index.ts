@@ -43,6 +43,7 @@ export type {
   CreatePolicyRequest,
   CreateProgramRequest,
   CredentialDto,
+  FundProgramRequest,
   GenerateProofRequest,
   MilestoneAttestationDto,
   PolicyDto,

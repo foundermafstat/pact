@@ -208,6 +208,7 @@ export type MilestoneAttestationDto = z.infer<
 export type ProofJobDto = z.infer<typeof ProofJobDtoSchema>;
 export type ContractEventDto = z.infer<typeof ContractEventDtoSchema>;
 export type CreateProgramRequest = z.infer<typeof CreateProgramRequestSchema>;
+export type FundProgramRequest = z.infer<typeof FundProgramRequestSchema>;
 export type CreatePolicyRequest = z.infer<typeof CreatePolicyRequestSchema>;
 export type CreateMockCredentialRequest = z.infer<
   typeof CreateMockCredentialRequestSchema
