@@ -77,6 +77,41 @@ describe("Proof APIs", () => {
     await app.close();
   });
 
+  it("rejects eligibility proof jobs for revoked credentials", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const credentialResponse = await app.inject({
+      method: "POST",
+      url: "/api/issuer/credentials/mock",
+      payload: {
+        wallet: "GPROJECT",
+        isAccredited: true,
+        isNonUs: false,
+        jurisdictionCode: "US",
+        sanctionsPassed: true,
+        expiresAt: 1785600000
+      }
+    });
+    const credentialId = credentialResponse.json().data.credential.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/issuer/credentials/${credentialId}/revoke`
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/proofs/eligibility/generate",
+      payload: {
+        credentialId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("credential_not_active");
+
+    await app.close();
+  });
+
   it("creates and completes a mock milestone proof job", async () => {
     const app = await buildApiServer(testConfig);
 

@@ -40,6 +40,13 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     if (!issuedCredential) {
       throw new ApiError(404, "credential_not_found", "Credential was not found");
     }
+    if (issuedCredential.credential.status !== "Active") {
+      throw new ApiError(
+        400,
+        "credential_not_active",
+        "Credential is revoked or expired"
+      );
+    }
 
     const queuedJob = proofJobService.createJob({
       proofType: "Eligibility",

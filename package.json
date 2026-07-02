@@ -20,6 +20,7 @@
     "zk:test:proofs": "bash circuits/scripts/snarkjs-pipeline.sh eligibility all && bash circuits/scripts/snarkjs-pipeline.sh milestone all",
     "seed:demo": "tsx scripts/seed/seed-demo.ts",
     "demo:happy-path": "tsx scripts/demo/run-happy-path.ts",
+    "demo:attacks": "tsx scripts/demo/run-attack-cases.ts",
     "deploy:contracts": "tsx scripts/deploy/contracts.ts"
   },
   "devDependencies": {
