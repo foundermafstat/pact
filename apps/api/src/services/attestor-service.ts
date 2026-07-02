@@ -18,6 +18,8 @@ export class AttestorService {
   public createMockEvidence(
     input: CreateMilestoneEvidenceRequest
   ): MilestoneAttestationDto {
+    this.validateMilestoneMetrics(input);
+
     const attestorId =
       process.env["MILESTONE_ATTESTOR_ID"] ?? "PACT_MILESTONE_MOCK_ATTESTOR";
     const publicPolicyHash = sha256Hex(
@@ -38,6 +40,20 @@ export class AttestorService {
 
     this.attestations.set(attestation.id, attestation);
     return attestation;
+  }
+
+  private validateMilestoneMetrics(input: CreateMilestoneEvidenceRequest): void {
+    if (input.metrics.activeUsers < 500) {
+      throw new Error("active_users below threshold");
+    }
+
+    if (input.metrics.pilotPartners < 3) {
+      throw new Error("pilot_partners below threshold");
+    }
+
+    if (!input.metrics.auditPassed) {
+      throw new Error("audit_passed must be true");
+    }
   }
 }
 

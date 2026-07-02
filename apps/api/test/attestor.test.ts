@@ -39,4 +39,28 @@ describe("Attestor APIs", () => {
 
     await app.close();
   });
+
+  it("rejects below-threshold milestone evidence", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-evidence/mock",
+      payload: {
+        programId: "11111111-1111-4111-8111-111111111111",
+        milestoneKey: "M1",
+        metrics: {
+          activeUsers: 499,
+          pilotPartners: 4,
+          auditPassed: true
+        },
+        sourceRefs: ["mock_github_release_001"]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("milestone_validation_failed");
+
+    await app.close();
+  });
 });
