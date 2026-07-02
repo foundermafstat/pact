@@ -12,7 +12,7 @@
   "merklePathIndices": ["0", "0", "0", "0", "0", "0", "0", "0"],
   "policyHash": "124",
   "credentialRoot": "999",
-  "nullifier": "55",
+  "nullifier": "92",
   "chainId": "1",
   "contractId": "2",
   "marketId": "3",

@@ -68,20 +68,24 @@ template EligibilityProof(maxMerkleDepth) {
   policyHash === merklePathElements[1];
   merklePathIndices[0] === 0;
 
+  // Placeholder nullifier binding until Poseidon is wired.
+  signal derivedNullifier;
+  derivedNullifier <==
+    credentialSecret +
+    chainId * 3 +
+    contractId * 5 +
+    marketId * 7 +
+    assetId * 11 +
+    actionType * 13;
+  nullifier === derivedNullifier;
+
   signal schemaAccumulator;
   schemaAccumulator <==
-    credentialSecret +
     credentialSalt +
     subjectId +
     jurisdictionCode +
     expiresAt +
     issuerId +
-    nullifier +
-    chainId +
-    contractId +
-    marketId +
-    assetId +
-    actionType +
     accountBinding;
 
   signal policyGate;
