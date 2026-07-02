@@ -1,6 +1,6 @@
 import { config as loadDotenv } from "dotenv";
 
-loadDotenv();
+loadDotenv({ quiet: true });
 
 export type ApiConfig = {
   nodeEnv: string;
@@ -30,3 +30,6 @@ export const loadApiConfig = (): ApiConfig => ({
   port: readNumber(process.env["API_PORT"], 4000),
   corsOrigin: process.env["CORS_ORIGIN"] ?? "http://localhost:3000"
 });
+
+export const getDatabaseUrl = (): string =>
+  process.env["DATABASE_URL"] ?? "postgresql://pact:pact@localhost:5432/pact";

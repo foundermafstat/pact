@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
@@ -15,11 +16,14 @@
     "@pact/sdk": "workspace:*",
     "@pact/shared": "workspace:*",
     "@pact/zk": "workspace:*",
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "dotenv": "^17.2.3",
-    "fastify": "^5.6.2"
+    "fastify": "^5.6.2",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
+    "@types/pg": "^8.16.0",
     "prisma": "^7.2.0"
   }
 }

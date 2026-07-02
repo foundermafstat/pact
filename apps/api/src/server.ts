@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import { loadApiConfig, type ApiConfig } from "./config";
+import { registerPrismaShutdown } from "./db/client";
 import { registerErrorHandler } from "./errors";
 
 export const buildApiServer = async (
@@ -16,6 +17,7 @@ export const buildApiServer = async (
   });
 
   registerErrorHandler(app);
+  registerPrismaShutdown(app);
 
   app.get("/health", async () => ({
     ok: true,
