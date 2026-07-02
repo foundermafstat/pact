@@ -24,7 +24,8 @@
     "deploy:contracts": "tsx scripts/deploy/contracts.ts",
     "infra:up": "docker compose -f docker-compose.offchain.yml up -d postgres redis",
     "infra:down": "docker compose -f docker-compose.offchain.yml down",
-    "deploy:offchain": "tsx scripts/deploy/offchain-services.ts --strict"
+    "deploy:offchain": "tsx scripts/deploy/offchain-services.ts --strict",
+    "deploy:web": "tsx scripts/deploy/frontend-demo.ts"
   },
   "devDependencies": {
     "@types/node": "^25.0.2",

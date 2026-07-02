@@ -1,0 +1,53 @@
+{
+  "generatedAt": "2026-07-02T17:48:48.020Z",
+  "mode": "local-demo",
+  "deployedUrl": "http://127.0.0.1:3100",
+  "apiUrl": "http://127.0.0.1:4000",
+  "routes": [
+    "/",
+    "/sponsor",
+    "/project",
+    "/issuer",
+    "/attestor",
+    "/audit"
+  ],
+  "contractArtifactPath": "/Users/irine/Desktop/pact/contracts/deployments/latest.contracts.json",
+  "publicContractIds": {
+    "policyRegistry": "CDVYEDPPQGMTRYWLTICHNB3WCNCYENSF4WCKJW5KYHJWFTHZQSTIW2TP",
+    "rootRegistry": "CAZWJ4Y4ATQNZF237VVREHKMSC7PY622AJBDZIYURAP3DQO6PZPKTWWG",
+    "nullifierRegistry": "CB22RLWPWAHXOWIBUEINDERPLWI6W4FNPRPYGXBXBRNGQPAJCWPWDAQG",
+    "verifierAdapter": "CDRIPSJMPQ3UNSSKDDJUXDHSY2FEEYQIUDKTNJN32EMCWOJW4SLKC3F3",
+    "milestoneEscrow": "CAFPMSEXS5GUJBTUGYZXL2FOOXKRJQMCFFAEMGXXDC5HFKXQLVVV4P5D"
+  },
+  "checks": [
+    {
+      "name": "public frontend env",
+      "ok": true,
+      "details": {
+        "deployedUrl": "http://127.0.0.1:3100",
+        "apiUrl": "http://127.0.0.1:4000",
+        "network": "testnet",
+        "missingKeys": []
+      }
+    },
+    {
+      "name": "next build",
+      "ok": true,
+      "details": {
+        "command": "pnpm --filter @pact/web build",
+        "status": 0,
+        "output": "$ next build"
+      }
+    },
+    {
+      "name": "playwright smoke",
+      "ok": true,
+      "details": {
+        "command": "pnpm --filter @pact/web test:e2e",
+        "status": 0,
+        "output": "$ playwright test\n[WebServer] (node:91147) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)\n[WebServer] $ next dev --hostname 127.0.0.1 --port 3100\n[WebServer] (node:91185) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)\n[WebServer] (node:91191) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)\n(node:91243) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)"
+      }
+    }
+  ],
+  "ok": true
+}
