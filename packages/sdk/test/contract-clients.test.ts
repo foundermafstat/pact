@@ -32,12 +32,29 @@ describe("contract clients", () => {
       totalAmount: "1000",
       eligibilityPolicyId: "policy-1"
     });
+    await client.submitMilestoneProof({
+      programId: "program-1",
+      milestoneId: "M1",
+      proof: "proof",
+      publicInputs: "public-inputs"
+    });
+    await client.releaseTranche("program-1", "M1");
 
     expect(invocations).toEqual([
       {
         contractId: "escrow-id",
         method: "create_program",
         args: ["program-1", "GPROJECT", "asset-id", "1000", "policy-1"]
+      },
+      {
+        contractId: "escrow-id",
+        method: "submit_milestone_proof",
+        args: ["program-1", "M1", "proof", "public-inputs"]
+      },
+      {
+        contractId: "escrow-id",
+        method: "release_tranche",
+        args: ["program-1", "M1"]
       }
     ]);
   });

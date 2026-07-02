@@ -98,6 +98,35 @@ export class ProgramService {
     return record;
   }
 
+  public releaseTranche(
+    programId: string,
+    milestoneKey: string,
+    txHash: string
+  ): TrancheDto | undefined {
+    const record = this.programs.get(programId);
+    if (!record) {
+      return undefined;
+    }
+
+    const trancheIndex = record.tranches.findIndex(
+      (item) => item.milestoneKey === milestoneKey
+    );
+    const tranche = record.tranches[trancheIndex];
+    if (!tranche || tranche.status === "Released") {
+      return undefined;
+    }
+
+    const releasedTranche: TrancheDto = {
+      ...tranche,
+      status: "Released",
+      releasedAt: now(),
+      txHash
+    };
+    record.tranches[trancheIndex] = releasedTranche;
+
+    return releasedTranche;
+  }
+
   public getAudit(programId: string): ProgramAudit | undefined {
     const record = this.programs.get(programId);
     if (!record) {

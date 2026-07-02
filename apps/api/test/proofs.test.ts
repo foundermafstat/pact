@@ -152,6 +152,129 @@ describe("Proof APIs", () => {
     await app.close();
   });
 
+  it("submits a succeeded milestone proof and releases the tranche", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const programResponse = await app.inject({
+      method: "POST",
+      url: "/api/programs",
+      payload: {
+        programKey: "PACT-DEMO-003",
+        sponsorWallet: "GSPONSOR",
+        projectWallet: "GPROJECT",
+        assetContract: "USDC",
+        totalAmount: "100000000",
+        eligibilityPolicyId: "eligibility-policy-1",
+        tranches: [
+          {
+            milestoneKey: "M1",
+            milestonePolicyId: "22222222-2222-4222-8222-222222222222",
+            amount: "50000000",
+            releaseToWallet: "GPROJECT"
+          }
+        ]
+      }
+    });
+    const programId = programResponse.json().data.program.id;
+
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-evidence/mock",
+      payload: {
+        programId,
+        milestoneKey: "M1",
+        metrics: {
+          activeUsers: 735,
+          pilotPartners: 4,
+          auditPassed: true
+        },
+        sourceRefs: ["mock_github_release_001"]
+      }
+    });
+    const buildResponse = await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/build",
+      payload: {
+        policyId: "22222222-2222-4222-8222-222222222222",
+        rootType: "MilestoneMetrics"
+      }
+    });
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/publish",
+      payload: {
+        rootId: buildResponse.json().data.root.id
+      }
+    });
+    const proofResponse = await app.inject({
+      method: "POST",
+      url: "/api/proofs/milestone/generate",
+      payload: {
+        programId,
+        milestoneKey: "M1"
+      }
+    });
+    const proofJobId = proofResponse.json().data.id;
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: "/api/proofs/milestone/submit",
+      payload: {
+        proofJobId,
+        programId,
+        milestoneKey: "M1"
+      }
+    });
+
+    const body = submitResponse.json().data;
+    expect(submitResponse.statusCode).toBe(200);
+    expect(body.tranche.status).toBe("Released");
+    expect(body.tranche.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(body.txHash).toBe(body.tranche.txHash);
+
+    await app.close();
+  });
+
+  it("rejects non-milestone proof jobs during milestone submit", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const credentialResponse = await app.inject({
+      method: "POST",
+      url: "/api/issuer/credentials/mock",
+      payload: {
+        wallet: "GPROJECT",
+        isAccredited: true,
+        isNonUs: false,
+        jurisdictionCode: "US",
+        sanctionsPassed: true,
+        expiresAt: 1785600000
+      }
+    });
+    const credentialId = credentialResponse.json().data.credential.id;
+    const proofResponse = await app.inject({
+      method: "POST",
+      url: "/api/proofs/eligibility/generate",
+      payload: {
+        credentialId
+      }
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/proofs/milestone/submit",
+      payload: {
+        proofJobId: proofResponse.json().data.id,
+        programId: "11111111-1111-4111-8111-111111111111",
+        milestoneKey: "M1"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("proof_job_not_submittable");
+
+    await app.close();
+  });
+
   it("rejects milestone proof jobs without active evidence root", async () => {
     const app = await buildApiServer(testConfig);
 

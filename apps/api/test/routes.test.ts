@@ -13,22 +13,25 @@ const testConfig = {
 };
 
 describe("API route registry", () => {
-  it("registers all MVP route groups", async () => {
+  it("registers all proof route groups", async () => {
     const app = await buildApiServer(testConfig);
 
-    const endpoints = [
-      ["POST", "/api/proofs/milestone/submit"]
+    const checks = [
+      ["POST", "/api/proofs/eligibility/generate", 400],
+      ["POST", "/api/proofs/milestone/generate", 400],
+      ["POST", "/api/proofs/milestone/submit", 400],
+      ["GET", "/api/proofs/11111111-1111-4111-8111-111111111111", 404]
     ] as const;
 
-    for (const [method, url] of endpoints) {
+    for (const [method, url, expectedStatus] of checks) {
       const response = await app.inject({ method, url });
-      expect(response.statusCode, `${method} ${url}`).toBe(501);
+      expect(response.statusCode, `${method} ${url}`).toBe(expectedStatus);
     }
 
     await app.close();
   });
 
-  it("returns typed not_implemented for registered placeholder routes", async () => {
+  it("returns typed validation error for proof submit", async () => {
     const app = await buildApiServer(testConfig);
     const response = await app.inject({
       method: "POST",
@@ -37,10 +40,10 @@ describe("API route registry", () => {
 
     await app.close();
 
-    expect(response.statusCode).toBe(501);
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       error: {
-        code: "not_implemented"
+        code: "invalid_milestone_proof_submit_request"
       }
     });
   });

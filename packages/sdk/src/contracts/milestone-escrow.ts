@@ -46,4 +46,25 @@ export class MilestoneEscrowClient {
       args: [programId]
     });
   }
+
+  public submitMilestoneProof(args: {
+    programId: string;
+    milestoneId: string;
+    proof: string;
+    publicInputs: string;
+  }) {
+    return this.transport.invoke<void>({
+      contractId: this.contractId,
+      method: "submit_milestone_proof",
+      args: [args.programId, args.milestoneId, args.proof, args.publicInputs]
+    });
+  }
+
+  public releaseTranche(programId: string, milestoneId: string) {
+    return this.transport.invoke<void>({
+      contractId: this.contractId,
+      method: "release_tranche",
+      args: [programId, milestoneId]
+    });
+  }
 }
