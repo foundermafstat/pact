@@ -10,6 +10,7 @@ build/
 coverage/
 target/
 circuits/artifacts/
+scripts/seed/*.generated.json
 
 *.log
 .DS_Store

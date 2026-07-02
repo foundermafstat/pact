@@ -18,6 +18,7 @@
     "zk:prove:eligibility": "bash circuits/scripts/snarkjs-pipeline.sh eligibility all",
     "zk:prove:milestone": "bash circuits/scripts/snarkjs-pipeline.sh milestone all",
     "zk:test:proofs": "bash circuits/scripts/snarkjs-pipeline.sh eligibility all && bash circuits/scripts/snarkjs-pipeline.sh milestone all",
+    "seed:demo": "tsx scripts/seed/seed-demo.ts",
     "deploy:contracts": "tsx scripts/deploy/contracts.ts"
   },
   "devDependencies": {
