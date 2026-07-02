@@ -4,10 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@pact/sdk": "workspace:*",
-    "@pact/shared": "workspace:*"
+    "@pact/shared": "workspace:*",
+    "next": "^16.0.10",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3"
   }
 }

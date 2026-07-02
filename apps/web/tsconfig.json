@@ -4,5 +4,5 @@
     "jsx": "preserve",
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx"]
 }
