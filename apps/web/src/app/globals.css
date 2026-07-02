@@ -375,6 +375,13 @@ select {
   min-width: min(420px, 100%);
 }
 
+.attack-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .progress-track {
   height: 10px;
   border-radius: 999px;
