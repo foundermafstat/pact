@@ -13,3 +13,7 @@ export {
 export type { EligibilityFixture, MilestoneFixture } from "./fixtures";
 export { buildMerkleTree, sha256PairHash } from "./merkle";
 export type { HashFunction, MerkleProof, MerkleTree } from "./merkle";
+export {
+  formatEligibilityPublicInputs,
+  formatMilestonePublicInputs
+} from "./public-inputs";
