@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-07-02T16:44:50.704Z",
-  "dryRun": true,
+  "generatedAt": "2026-07-02T17:41:42.549Z",
+  "dryRun": false,
   "network": "testnet",
   "rpcUrl": "https://soroban-testnet.stellar.org",
   "contracts": {
-    "POLICY_REGISTRY_CONTRACT_ID": "dry-run:stellar contract deploy --source-account DRY_RUN_SOURCE --wasm /Users/irine/Desktop/pact/contracts/target/wasm32v1-none/release/policy_registry.wasm --network testnet --rpc-url https://soroban-testnet.stellar.org --network-passphrase Test SDF Network ; September 2015 --alias policy-registry",
-    "ROOT_REGISTRY_CONTRACT_ID": "dry-run:stellar contract deploy --source-account DRY_RUN_SOURCE --wasm /Users/irine/Desktop/pact/contracts/target/wasm32v1-none/release/root_registry.wasm --network testnet --rpc-url https://soroban-testnet.stellar.org --network-passphrase Test SDF Network ; September 2015 --alias root-registry",
-    "NULLIFIER_REGISTRY_CONTRACT_ID": "dry-run:stellar contract deploy --source-account DRY_RUN_SOURCE --wasm /Users/irine/Desktop/pact/contracts/target/wasm32v1-none/release/nullifier_registry.wasm --network testnet --rpc-url https://soroban-testnet.stellar.org --network-passphrase Test SDF Network ; September 2015 --alias nullifier-registry",
-    "VERIFIER_ADAPTER_CONTRACT_ID": "dry-run:stellar contract deploy --source-account DRY_RUN_SOURCE --wasm /Users/irine/Desktop/pact/contracts/target/wasm32v1-none/release/verifier_adapter.wasm --network testnet --rpc-url https://soroban-testnet.stellar.org --network-passphrase Test SDF Network ; September 2015 --alias verifier-adapter",
-    "MILESTONE_ESCROW_CONTRACT_ID": "dry-run:stellar contract deploy --source-account DRY_RUN_SOURCE --wasm /Users/irine/Desktop/pact/contracts/target/wasm32v1-none/release/milestone_escrow.wasm --network testnet --rpc-url https://soroban-testnet.stellar.org --network-passphrase Test SDF Network ; September 2015 --alias milestone-escrow",
-    "GATED_ASSET_CONTROLLER_CONTRACT_ID": "dry-run:stellar contract deploy --source-account DRY_RUN_SOURCE --wasm /Users/irine/Desktop/pact/contracts/target/wasm32v1-none/release/gated_asset_controller.wasm --network testnet --rpc-url https://soroban-testnet.stellar.org --network-passphrase Test SDF Network ; September 2015 --alias gated-asset-controller"
+    "POLICY_REGISTRY_CONTRACT_ID": "CDVYEDPPQGMTRYWLTICHNB3WCNCYENSF4WCKJW5KYHJWFTHZQSTIW2TP",
+    "ROOT_REGISTRY_CONTRACT_ID": "CAZWJ4Y4ATQNZF237VVREHKMSC7PY622AJBDZIYURAP3DQO6PZPKTWWG",
+    "NULLIFIER_REGISTRY_CONTRACT_ID": "CB22RLWPWAHXOWIBUEINDERPLWI6W4FNPRPYGXBXBRNGQPAJCWPWDAQG",
+    "VERIFIER_ADAPTER_CONTRACT_ID": "CDRIPSJMPQ3UNSSKDDJUXDHSY2FEEYQIUDKTNJN32EMCWOJW4SLKC3F3",
+    "MILESTONE_ESCROW_CONTRACT_ID": "CAFPMSEXS5GUJBTUGYZXL2FOOXKRJQMCFFAEMGXXDC5HFKXQLVVV4P5D",
+    "GATED_ASSET_CONTROLLER_CONTRACT_ID": "CDWKXDYQJEC442Z32LKJ2CDPWKFZXYAW67M24HADMSZDTNOKVZW4KAE4"
   }
 }

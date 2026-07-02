@@ -18,3 +18,6 @@ version = "0.1.0"
 [workspace.dependencies]
 pact-contracts-shared = { path = "shared" }
 soroban-sdk = "27.0.0-rc.1"
+
+[profile.release]
+overflow-checks = true

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -46,6 +46,24 @@ const dryRun = args.has("--dry-run");
 const outDir = resolve("contracts/target/wasm32v1-none/release");
 const artifactPath = resolve("contracts/deployments/latest.contracts.json");
 
+const ensureDeployableWasm = (artifactName: string): string => {
+  const rootWasmPath = resolve(outDir, artifactName);
+  const depsWasmPath = resolve(outDir, "deps", artifactName);
+  const rootSize = statSync(rootWasmPath, { throwIfNoEntry: false })?.size ?? 0;
+
+  if (rootSize > 0) {
+    return rootWasmPath;
+  }
+
+  const depsSize = statSync(depsWasmPath, { throwIfNoEntry: false })?.size ?? 0;
+  if (depsSize <= 0) {
+    throw new Error(`Missing deployable WASM artifact: ${artifactName}`);
+  }
+
+  copyFileSync(depsWasmPath, rootWasmPath);
+  return rootWasmPath;
+};
+
 const run = (command: string, commandArgs: string[]): string => {
   if (dryRun) {
     const printable = [command, ...commandArgs].join(" ");
@@ -87,7 +105,9 @@ run("stellar", [
 const contracts: Record<string, string> = {};
 
 for (const target of targets) {
-  const wasmPath = resolve(outDir, target.artifactName);
+  const wasmPath = dryRun
+    ? resolve(outDir, target.artifactName)
+    : ensureDeployableWasm(target.artifactName);
   const deployOutput = run("stellar", [
     "contract",
     "deploy",
