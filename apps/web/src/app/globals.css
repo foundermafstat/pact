@@ -428,15 +428,24 @@ select {
 }
 
 .status-released,
-.status-ready {
+.status-ready,
+.status-confirmed,
+.status-submitted {
   background: #e6f4f1;
   color: var(--accent-strong);
 }
 
 .status-rejected,
-.status-cancelled {
+.status-cancelled,
+.status-failed {
   background: #fdecea;
   color: var(--danger);
+}
+
+.status-pending,
+.status-simulating {
+  background: #fff7ed;
+  color: var(--warn);
 }
 
 .success-text {
