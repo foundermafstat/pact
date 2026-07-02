@@ -1,6 +1,7 @@
 import type { ContractEventDto } from "@pact/shared";
 
 import type { IndexerConfig } from "./config";
+import type { CursorStore } from "./cursor-store";
 import {
   mapRpcEventToContractEvent,
   type StellarRpcEvent
@@ -21,10 +22,28 @@ export class PactEventIndexer {
   public constructor(
     config: IndexerConfig,
     private readonly source: EventSource,
-    private readonly sink: EventSink
+    private readonly sink: EventSink,
+    private readonly cursorStore?: CursorStore,
+    initialCursor: number | null = config.startLedger
   ) {
-    this.cursor = config.startLedger;
+    this.cursor = initialCursor;
     this.allowedContractIds = new Set(config.contractIds);
+  }
+
+  public static async create(
+    config: IndexerConfig,
+    source: EventSource,
+    sink: EventSink,
+    cursorStore?: CursorStore
+  ): Promise<PactEventIndexer> {
+    const storedCursor = cursorStore ? await cursorStore.loadCursor() : null;
+    return new PactEventIndexer(
+      config,
+      source,
+      sink,
+      cursorStore,
+      storedCursor ?? config.startLedger
+    );
   }
 
   public getCursor(): number | null {
@@ -41,6 +60,7 @@ export class PactEventIndexer {
     if (mappedEvents.length > 0) {
       await this.sink.saveEvents(mappedEvents);
       this.cursor = Math.max(...mappedEvents.map((event) => event.ledger));
+      await this.cursorStore?.saveCursor(this.cursor);
     }
 
     return mappedEvents;

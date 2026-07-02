@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MemoryCursorStore } from "../src/cursor-store";
 import { mapRpcEventToContractEvent } from "../src/event-mapper";
 import { PactEventIndexer } from "../src/indexer";
 
@@ -51,6 +52,7 @@ describe("Pact event indexer", () => {
         rpcUrl: "http://localhost:8000",
         pollIntervalMs: 1000,
         startLedger: 10,
+        cursorPath: ":memory:",
         contractIds: ["escrow"]
       },
       {
@@ -76,5 +78,54 @@ describe("Pact event indexer", () => {
     expect(events).toHaveLength(1);
     expect(saved).toHaveLength(1);
     expect(indexer.getCursor()).toBe(12);
+  });
+
+  it("resumes from stored cursor and avoids duplicate records", async () => {
+    const saved: unknown[] = [];
+    const cursorStore = new MemoryCursorStore();
+    const config = {
+      rpcUrl: "http://localhost:8000",
+      pollIntervalMs: 1000,
+      startLedger: 10,
+      cursorPath: ":memory:",
+      contractIds: ["escrow"]
+    };
+    const source = {
+      getEvents: async (cursor: number | null) =>
+        cursor !== null && cursor >= 12
+          ? []
+          : [
+              {
+                contractId: "escrow",
+                eventType: "released",
+                txHash: "tx-1",
+                ledger: 12,
+                payload: {}
+              }
+            ]
+    };
+    const sink = {
+      saveEvents: async (events: unknown[]) => {
+        saved.push(...events);
+      }
+    };
+
+    const firstIndexer = await PactEventIndexer.create(
+      config,
+      source,
+      sink,
+      cursorStore
+    );
+    await firstIndexer.pollOnce();
+    const resumedIndexer = await PactEventIndexer.create(
+      config,
+      source,
+      sink,
+      cursorStore
+    );
+    await resumedIndexer.pollOnce();
+
+    expect(saved).toHaveLength(1);
+    expect(resumedIndexer.getCursor()).toBe(12);
   });
 });
