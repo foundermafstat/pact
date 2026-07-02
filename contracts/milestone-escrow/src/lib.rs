@@ -2,7 +2,8 @@
 
 use pact_contracts_shared::{Program, ProgramStatus, Tranche, TrancheStatus};
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, Address, BytesN, Env,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, Address,
+    BytesN, Env,
 };
 
 #[contracttype]
@@ -92,6 +93,7 @@ impl MilestoneEscrow {
         }
 
         let key = DataKey::Program(program_id.clone());
+        let event_program_id = program_id.clone();
         if env.storage().persistent().has(&key) {
             panic_with_error!(&env, MilestoneEscrowError::ProgramAlreadyExists);
         }
@@ -109,6 +111,8 @@ impl MilestoneEscrow {
         };
 
         env.storage().persistent().set(&key, &program);
+        env.events()
+            .publish((symbol_short!("prog_new"), event_program_id), total_amount);
     }
 
     pub fn get_program(env: Env, program_id: BytesN<32>) -> Program {
@@ -169,6 +173,7 @@ impl MilestoneEscrow {
         }
 
         let key = DataKey::Program(program_id.clone());
+        let event_program_id = program_id.clone();
         let mut program = Self::read_program(&env, program_id);
         let next_funded_amount = program.funded_amount + amount;
 
@@ -178,10 +183,13 @@ impl MilestoneEscrow {
 
         program.funded_amount = next_funded_amount;
         env.storage().persistent().set(&key, &program);
+        env.events()
+            .publish((symbol_short!("funded"), event_program_id), next_funded_amount);
     }
 
     pub fn activate_program(env: Env, program_id: BytesN<32>) {
         let key = DataKey::Program(program_id.clone());
+        let event_program_id = program_id.clone();
         let mut program = Self::read_program(&env, program_id.clone());
 
         if program.status != ProgramStatus::Draft {
@@ -202,13 +210,19 @@ impl MilestoneEscrow {
 
         program.status = ProgramStatus::Active;
         env.storage().persistent().set(&key, &program);
+        env.events()
+            .publish((symbol_short!("prog_act"), event_program_id), program.total_amount);
     }
 
     pub fn pause_program(env: Env, program_id: BytesN<32>) {
+        env.events()
+            .publish((symbol_short!("paused"), program_id.clone()), ());
         Self::set_program_status(env, program_id, ProgramStatus::Paused);
     }
 
     pub fn cancel_program(env: Env, program_id: BytesN<32>) {
+        env.events()
+            .publish((symbol_short!("canceled"), program_id.clone()), ());
         Self::set_program_status(env, program_id, ProgramStatus::Cancelled);
     }
 
@@ -265,6 +279,8 @@ impl MilestoneEscrow {
         env.storage()
             .persistent()
             .set(&DataKey::EligibilityVerified(program_id), &true);
+        env.events()
+            .publish((symbol_short!("elig_ok"), public_inputs.account_binding), true);
     }
 
     pub fn is_project_eligible(env: Env, program_id: BytesN<32>) -> bool {
@@ -330,6 +346,8 @@ impl MilestoneEscrow {
         env.storage()
             .persistent()
             .set(&DataKey::MilestoneVerified(program_id, milestone_id), &true);
+        env.events()
+            .publish((symbol_short!("mile_ok"), public_inputs.recipient), public_inputs.tranche_amount);
     }
 
     pub fn is_milestone_verified(
@@ -356,6 +374,8 @@ impl MilestoneEscrow {
         tranche.status = TrancheStatus::Released;
         tranche.released_at = Some(env.ledger().timestamp());
         env.storage().persistent().set(&key, &tranche);
+        env.events()
+            .publish((symbol_short!("released"), tranche.release_to), tranche.amount);
     }
 
     pub fn mock_proof_marker(env: &Env) -> BytesN<32> {

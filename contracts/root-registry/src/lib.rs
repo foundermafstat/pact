@@ -2,7 +2,8 @@
 
 use pact_contracts_shared::{RootRecord, RootStatus, RootType};
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, BytesN, Env,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, BytesN,
+    Env,
 };
 
 #[contracttype]
@@ -63,6 +64,8 @@ impl RootRegistry {
         env.storage()
             .persistent()
             .set(&DataKey::Current(policy_id, root_type), &record);
+        env.events()
+            .publish((symbol_short!("root_act"), root.clone()), record.policy_id);
     }
 
     pub fn deactivate_root(env: Env, _policy_id: BytesN<32>, root: BytesN<32>) {

@@ -2,7 +2,8 @@
 
 use pact_contracts_shared::{Policy, PolicyStatus, PolicyType};
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, Address, BytesN, Env,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, Address,
+    BytesN, Env,
 };
 
 #[contracttype]
@@ -87,6 +88,9 @@ impl PolicyRegistry {
 
     pub fn activate_policy(env: Env, policy_id: BytesN<32>) {
         Self::require_admin(&env);
+        let policy = Self::read_policy(&env, policy_id.clone());
+        env.events()
+            .publish((symbol_short!("pol_act"), policy_id.clone()), policy.policy_hash);
         Self::set_policy_status(env, policy_id, PolicyStatus::Active);
     }
 
