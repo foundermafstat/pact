@@ -17,17 +17,20 @@ describe("PactApiClient", () => {
       calls.push({ url: String(url), init });
       return jsonResponse({
         data: {
-          id: "11111111-1111-4111-8111-111111111111",
-          programKey: "PACT-DEMO",
-          sponsorWallet: "GSPONSOR",
-          projectWallet: "GPROJECT",
-          assetContract: "USDC",
-          totalAmount: "1000",
-          fundedAmount: "0",
-          status: "Draft",
-          eligibilityPolicyId: "eligibility-policy-1",
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z"
+          program: {
+            id: "11111111-1111-4111-8111-111111111111",
+            programKey: "PACT-DEMO",
+            sponsorWallet: "GSPONSOR",
+            projectWallet: "GPROJECT",
+            assetContract: "USDC",
+            totalAmount: "1000",
+            fundedAmount: "0",
+            status: "Draft",
+            eligibilityPolicyId: "eligibility-policy-1",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z"
+          },
+          tranches: []
         }
       });
     });

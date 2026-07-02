@@ -29,6 +29,22 @@ type Parser<T> = {
 
 type FetchLike = typeof fetch;
 
+const ProgramRecordResponseSchema = {
+  parse: (value: unknown) => {
+    const data = (value as { data?: { program?: unknown; tranches?: unknown[] } }).data;
+    return {
+      data: {
+        program: ProgramDtoSchema.parse(data?.program),
+        tranches: (data?.tranches ?? []).map((tranche) => TrancheDtoSchema.parse(tranche))
+      }
+    };
+  }
+};
+
+const UnknownSuccessSchema = {
+  parse: (value: unknown) => value
+};
+
 export class PactApiClientError extends Error {
   public constructor(
     message: string,
@@ -49,9 +65,7 @@ export class PactApiClient {
     return this.request("/api/programs", {
       method: "POST",
       body: CreateProgramRequestSchema.parse(input),
-      schema: ApiSuccessResponseSchema(
-        ProgramDtoSchema.pick({ id: true }).passthrough()
-      )
+      schema: ProgramRecordResponseSchema
     });
   }
 
@@ -59,21 +73,21 @@ export class PactApiClient {
     return this.request(`/api/programs/${programId}/fund`, {
       method: "POST",
       body: FundProgramRequestSchema.parse(input),
-      schema: ApiSuccessResponseSchema(ProgramDtoSchema.passthrough())
+      schema: ProgramRecordResponseSchema
     });
   }
 
   public activateProgram(programId: string) {
     return this.request(`/api/programs/${programId}/activate`, {
       method: "POST",
-      schema: ApiSuccessResponseSchema(ProgramDtoSchema.passthrough())
+      schema: ProgramRecordResponseSchema
     });
   }
 
   public getProgramAudit(programId: string) {
     return this.request(`/api/programs/${programId}/audit`, {
       method: "GET",
-      schema: { parse: (value: unknown) => value }
+      schema: UnknownSuccessSchema
     });
   }
 
@@ -115,7 +129,7 @@ export class PactApiClient {
     return this.request("/api/attestor/milestone-root/build", {
       method: "POST",
       body: RootBuildRequestSchema.parse(input),
-      schema: { parse: (value: unknown) => value }
+      schema: UnknownSuccessSchema
     });
   }
 
@@ -154,9 +168,7 @@ export class PactApiClient {
     return this.request("/api/proofs/milestone/submit", {
       method: "POST",
       body: SubmitMilestoneProofRequestSchema.parse(input),
-      schema: ApiSuccessResponseSchema(
-        TrancheDtoSchema.pick({ id: true }).passthrough()
-      )
+      schema: UnknownSuccessSchema
     });
   }
 
