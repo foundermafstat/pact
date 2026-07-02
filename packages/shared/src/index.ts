@@ -10,6 +10,14 @@ export {
   ROOT_TYPES,
   TRANCHE_STATUSES
 } from "./constants";
+export {
+  EligibilityPolicySchema,
+  MVP_ELIGIBILITY_POLICY,
+  MVP_MILESTONE_M1_POLICY,
+  MilestonePolicySchema,
+  PolicyKeySchema,
+  PolicySchema
+} from "./policy";
 export type {
   ActionType,
   PolicyStatus,
@@ -21,3 +29,4 @@ export type {
   RootType,
   TrancheStatus
 } from "./constants";
+export type { EligibilityPolicy, MilestonePolicy, Policy } from "./policy";
