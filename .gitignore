@@ -8,6 +8,8 @@ node_modules/
 dist/
 build/
 coverage/
+test-results/
+playwright-report/
 target/
 circuits/artifacts/
 scripts/seed/*.generated.json
