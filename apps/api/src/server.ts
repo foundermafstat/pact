@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { loadApiConfig, type ApiConfig } from "./config";
 import { registerPrismaShutdown } from "./db/client";
 import { registerErrorHandler } from "./errors";
+import { registerApiRoutes } from "./routes";
 
 export const buildApiServer = async (
   config: ApiConfig = loadApiConfig()
@@ -24,6 +25,8 @@ export const buildApiServer = async (
     service: "pact-api",
     environment: config.appEnv
   }));
+
+  await registerApiRoutes(app);
 
   return app;
 };
