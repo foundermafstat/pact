@@ -6,6 +6,7 @@ import {
 
 import { ApiError } from "../errors";
 import { programService } from "../services/program-service";
+import { publicAuditService } from "../services/public-audit-service";
 
 export const registerProgramRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post("/api/programs", async (request) => {
@@ -55,7 +56,7 @@ export const registerProgramRoutes = async (app: FastifyInstance): Promise<void>
   app.get<{ Params: { programId: string } }>(
     "/api/programs/:programId/audit",
     async (request) => {
-      const audit = programService.getAudit(request.params.programId);
+      const audit = publicAuditService.getProgramAudit(request.params.programId);
       if (!audit) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }
