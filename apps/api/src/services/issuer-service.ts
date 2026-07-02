@@ -30,6 +30,11 @@ export class IssuerService {
   private readonly credentials = new Map<string, IssuedCredential>();
   private readonly roots = new Map<string, RootDto>();
 
+  public reset(): void {
+    this.credentials.clear();
+    this.roots.clear();
+  }
+
   public createMockCredential(input: CreateMockCredentialRequest): IssuedCredential {
     const issuerId = process.env["KYC_ISSUER_ID"] ?? "PACT_KYB_MOCK_ISSUER";
     const credentialSecret = hex();
@@ -80,6 +85,10 @@ export class IssuerService {
 
     this.credentials.set(credential.id, issuedCredential);
     return issuedCredential;
+  }
+
+  public getCredential(credentialId: string): IssuedCredential | undefined {
+    return this.credentials.get(credentialId);
   }
 
   public buildCredentialRoot(input: { policyId: string; rootType: RootType }): RootDto {
