@@ -60,20 +60,21 @@ template MilestoneUnlockProof(maxMerkleDepth, maxMetricSalts) {
   // Placeholder metric commitment/root binding until Poseidon Merkle is wired.
   milestoneRoot === attestationMerklePathElements[0];
   policyHash === attestationMerklePathElements[1];
+  recipient === attestationMerklePathElements[2];
+  trancheAmount === attestationMerklePathElements[3];
   attestationMerklePathIndices[0] === 0;
+
+  // Placeholder nullifier binding until Poseidon is wired.
+  signal derivedNullifier;
+  derivedNullifier <== projectSecret + programId * 17 + milestoneId * 19;
+  nullifier === derivedNullifier;
 
   signal schemaAccumulator;
   schemaAccumulator <==
-    projectSecret +
     attestationSecret +
     activeUsers +
     pilotPartners +
     metricSalts[0] +
-    nullifier +
-    programId +
-    milestoneId +
-    recipient +
-    trancheAmount +
     currentEpoch;
 
   signal metricGate;
