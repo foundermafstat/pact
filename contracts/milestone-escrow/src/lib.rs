@@ -14,6 +14,8 @@ pub enum DataKey {
     TrancheTotal(BytesN<32>),
     EligibilityVerified(BytesN<32>),
     EligibilityNullifier(BytesN<32>),
+    MilestoneVerified(BytesN<32>, BytesN<32>),
+    MilestoneNullifier(BytesN<32>),
     PolicyActive(BytesN<32>),
     RootActive(BytesN<32>),
 }
@@ -26,6 +28,16 @@ pub struct EligibilityPublicInputs {
     pub credential_root: BytesN<32>,
     pub nullifier: BytesN<32>,
     pub account_binding: Address,
+}
+
+#[contracttype]
+#[derive(Clone, Eq, PartialEq)]
+pub struct MilestonePublicInputs {
+    pub policy_id: BytesN<32>,
+    pub milestone_root: BytesN<32>,
+    pub nullifier: BytesN<32>,
+    pub recipient: Address,
+    pub tranche_amount: i128,
 }
 
 #[contracterror]
@@ -47,6 +59,10 @@ pub enum MilestoneEscrowError {
     InvalidProof = 13,
     NullifierAlreadyUsed = 14,
     WrongAccountBinding = 15,
+    ProjectNotEligible = 16,
+    WrongRecipient = 17,
+    WrongAmount = 18,
+    TrancheNotLocked = 19,
 }
 
 #[contract]
@@ -246,6 +262,75 @@ impl MilestoneEscrow {
         Self::read_bool(&env, DataKey::EligibilityVerified(program_id))
     }
 
+    pub fn submit_milestone_proof(
+        env: Env,
+        program_id: BytesN<32>,
+        milestone_id: BytesN<32>,
+        proof: BytesN<32>,
+        public_inputs: MilestonePublicInputs,
+    ) {
+        let program = Self::read_program(&env, program_id.clone());
+        if program.status != ProgramStatus::Active {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidProgramStatus);
+        }
+
+        if !Self::read_bool(&env, DataKey::EligibilityVerified(program_id.clone())) {
+            panic_with_error!(&env, MilestoneEscrowError::ProjectNotEligible);
+        }
+
+        let mut tranche = Self::read_tranche(&env, program_id.clone(), milestone_id.clone());
+        if tranche.status != TrancheStatus::Locked {
+            panic_with_error!(&env, MilestoneEscrowError::TrancheNotLocked);
+        }
+
+        if !Self::read_bool(&env, DataKey::PolicyActive(public_inputs.policy_id.clone())) {
+            panic_with_error!(&env, MilestoneEscrowError::InactivePolicy);
+        }
+
+        if !Self::read_bool(&env, DataKey::RootActive(public_inputs.milestone_root.clone())) {
+            panic_with_error!(&env, MilestoneEscrowError::InactiveRoot);
+        }
+
+        if Self::read_bool(
+            &env,
+            DataKey::MilestoneNullifier(public_inputs.nullifier.clone()),
+        ) {
+            panic_with_error!(&env, MilestoneEscrowError::NullifierAlreadyUsed);
+        }
+
+        if public_inputs.recipient != tranche.release_to {
+            panic_with_error!(&env, MilestoneEscrowError::WrongRecipient);
+        }
+
+        if public_inputs.tranche_amount != tranche.amount {
+            panic_with_error!(&env, MilestoneEscrowError::WrongAmount);
+        }
+
+        if proof != Self::mock_proof_marker(&env) {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidProof);
+        }
+
+        tranche.status = TrancheStatus::Ready;
+        env.storage().persistent().set(
+            &DataKey::Tranche(program_id.clone(), milestone_id.clone()),
+            &tranche,
+        );
+        env.storage()
+            .persistent()
+            .set(&DataKey::MilestoneNullifier(public_inputs.nullifier), &true);
+        env.storage()
+            .persistent()
+            .set(&DataKey::MilestoneVerified(program_id, milestone_id), &true);
+    }
+
+    pub fn is_milestone_verified(
+        env: Env,
+        program_id: BytesN<32>,
+        milestone_id: BytesN<32>,
+    ) -> bool {
+        Self::read_bool(&env, DataKey::MilestoneVerified(program_id, milestone_id))
+    }
+
     pub fn mock_proof_marker(env: &Env) -> BytesN<32> {
         BytesN::from_array(env, &[0xA5; 32])
     }
@@ -288,7 +373,9 @@ extern crate std;
 
 #[cfg(test)]
 mod tests {
-    use super::{EligibilityPublicInputs, MilestoneEscrow, MilestoneEscrowClient};
+    use super::{
+        EligibilityPublicInputs, MilestoneEscrow, MilestoneEscrowClient, MilestonePublicInputs,
+    };
     use pact_contracts_shared::{ProgramStatus, TrancheStatus};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
@@ -568,6 +655,120 @@ mod tests {
             &id(&env, 1),
             &MilestoneEscrow::mock_proof_marker(&env),
             &eligibility_inputs(&env, &project),
+        );
+    }
+
+    fn eligible_program(
+        env: &Env,
+        client: &MilestoneEscrowClient<'_>,
+        project: &Address,
+        asset: &Address,
+        release_to: &Address,
+    ) {
+        active_program_with_policy_and_root(env, client, project, asset, release_to);
+        client.submit_project_eligibility(
+            &id(env, 1),
+            &MilestoneEscrow::mock_proof_marker(env),
+            &eligibility_inputs(env, project),
+        );
+        client.set_policy_active(&id(env, 4), &true);
+        client.set_root_active(&id(env, 8), &true);
+    }
+
+    fn milestone_inputs(env: &Env, release_to: &Address) -> MilestonePublicInputs {
+        MilestonePublicInputs {
+            policy_id: id(env, 4),
+            milestone_root: id(env, 8),
+            nullifier: id(env, 9),
+            recipient: release_to.clone(),
+            tranche_amount: 1000,
+        }
+    }
+
+    #[test]
+    fn valid_milestone_proof_marks_tranche_ready() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &milestone_inputs(&env, &release_to),
+        );
+
+        let tranche = client.get_tranche(&id(&env, 1), &id(&env, 3));
+        assert!(matches!(tranche.status, TrancheStatus::Ready));
+        assert!(client.is_milestone_verified(&id(&env, 1), &id(&env, 3)));
+    }
+
+    #[test]
+    #[should_panic]
+    fn wrong_recipient_milestone_proof_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let mut inputs = milestone_inputs(&env, &release_to);
+        inputs.recipient = attacker;
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &inputs,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn wrong_amount_milestone_proof_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+        let mut inputs = milestone_inputs(&env, &release_to);
+        inputs.tranche_amount = 999;
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &inputs,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn replayed_milestone_nullifier_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+        let inputs = milestone_inputs(&env, &release_to);
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &inputs,
+        );
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &inputs,
         );
     }
 }
