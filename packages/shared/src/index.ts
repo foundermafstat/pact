@@ -10,6 +10,8 @@ export {
   ROOT_TYPES,
   TRANCHE_STATUSES
 } from "./constants";
+export { canonicalizeJson } from "./canonical-json";
+export { canonicalizePolicy, hashPolicy } from "./policy-hash";
 export {
   EligibilityPolicySchema,
   MVP_ELIGIBILITY_POLICY,
@@ -29,4 +31,5 @@ export type {
   RootType,
   TrancheStatus
 } from "./constants";
+export type { JsonValue } from "./canonical-json";
 export type { EligibilityPolicy, MilestonePolicy, Policy } from "./policy";
