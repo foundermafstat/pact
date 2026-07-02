@@ -428,7 +428,8 @@ extern crate std;
 #[cfg(test)]
 mod tests {
     use super::{
-        EligibilityPublicInputs, MilestoneEscrow, MilestoneEscrowClient, MilestonePublicInputs,
+        EligibilityPublicInputs, MilestoneEscrow, MilestoneEscrowClient, MilestoneEscrowError,
+        MilestonePublicInputs,
     };
     use pact_contracts_shared::{ProgramStatus, TrancheStatus};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
@@ -904,5 +905,18 @@ mod tests {
         );
         client.cancel_program(&id(&env, 1));
         client.release_tranche(&id(&env, 1), &id(&env, 3));
+    }
+
+    #[test]
+    fn escrow_error_codes_are_stable() {
+        assert_eq!(MilestoneEscrowError::ProgramAlreadyExists as u32, 1);
+        assert_eq!(MilestoneEscrowError::ProgramNotFound as u32, 2);
+        assert_eq!(MilestoneEscrowError::InvalidAmount as u32, 3);
+        assert_eq!(MilestoneEscrowError::InactivePolicy as u32, 11);
+        assert_eq!(MilestoneEscrowError::InactiveRoot as u32, 12);
+        assert_eq!(MilestoneEscrowError::NullifierAlreadyUsed as u32, 14);
+        assert_eq!(MilestoneEscrowError::WrongRecipient as u32, 17);
+        assert_eq!(MilestoneEscrowError::WrongAmount as u32, 18);
+        assert_eq!(MilestoneEscrowError::InvalidProgramStatus as u32, 10);
     }
 }
