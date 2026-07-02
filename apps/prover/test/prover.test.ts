@@ -59,4 +59,24 @@ describe("Prover service", () => {
     });
     expect(JSON.stringify(result.proofJson)).not.toContain("hidden");
   });
+
+  it("generates and verifies a local proof for a fixture", async () => {
+    const result = await processProofJob(
+      {
+        proofJobId: "11111111-1111-4111-8111-111111111111",
+        proofType: "MilestoneUnlock",
+        requestJson: {},
+        publicInputsJson: null,
+        privateInputsJson: null
+      },
+      {
+        ...testConfig,
+        proverMode: "local"
+      }
+    );
+
+    expect(result.proofJson.mode).toBe("local");
+    expect(result.proofJson.proof).toHaveProperty("pi_a");
+    expect(result.publicInputsJson.orderedPublicInputs).toBeInstanceOf(Array);
+  });
 });

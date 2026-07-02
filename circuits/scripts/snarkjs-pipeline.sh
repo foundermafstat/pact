@@ -49,6 +49,9 @@ witness() {
 
 setup() {
   compile
+  if [[ -f "$ZKEY_FINAL" && -f "$VKEY" ]]; then
+    return
+  fi
   bash "$ROOT_DIR/circuits/scripts/ensure-dev-ptau.sh" >/dev/null
   pnpm exec snarkjs groth16 setup "$R1CS" "$PTAU" "$ZKEY_0000" >/dev/null
   pnpm exec snarkjs zkey contribute \

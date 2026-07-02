@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { ProofType } from "@pact/shared";
 
 import type { ProverConfig } from "./config";
+import { generateLocalProof } from "./local-prover";
 
 export const PROOF_QUEUE_NAME = "proof-jobs";
 
@@ -49,8 +50,8 @@ export const processProofJob = async (
   payload: ProofJobPayload,
   config: Pick<ProverConfig, "proverMode">
 ): Promise<ProofProcessorResult> => {
-  if (config.proverMode !== "mock") {
-    throw new Error("Local proving artifacts are not configured yet");
+  if (config.proverMode === "local") {
+    return generateLocalProof(payload);
   }
 
   return createMockProofPayload(payload);
