@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import type { CreateMockCredentialRequest, CredentialDto } from "@pact/shared";
+import type { CreateMockCredentialRequest, CredentialDto, RootDto, RootType } from "@pact/shared";
+import { buildMerkleTree } from "@pact/zk";
 
 export type PrivateCredentialPackage = {
   credentialId: string;
@@ -27,6 +28,7 @@ const sha256Hex = (value: string): `0x${string}` =>
 
 export class IssuerService {
   private readonly credentials = new Map<string, IssuedCredential>();
+  private readonly roots = new Map<string, RootDto>();
 
   public createMockCredential(input: CreateMockCredentialRequest): IssuedCredential {
     const issuerId = process.env["KYC_ISSUER_ID"] ?? "PACT_KYB_MOCK_ISSUER";
@@ -78,6 +80,34 @@ export class IssuerService {
 
     this.credentials.set(credential.id, issuedCredential);
     return issuedCredential;
+  }
+
+  public buildCredentialRoot(input: { policyId: string; rootType: RootType }): RootDto {
+    const activeLeaves = [...this.credentials.values()]
+      .filter((item) => item.credential.status === "Active")
+      .map((item) => item.credential.credentialLeaf);
+
+    if (activeLeaves.length === 0) {
+      throw new Error("Cannot build credential root without active credentials");
+    }
+
+    const tree = buildMerkleTree(activeLeaves);
+    const createdAt = now();
+    const root: RootDto = {
+      id: randomUUID(),
+      policyId: input.policyId,
+      root: tree.root,
+      rootType: input.rootType,
+      epoch: Date.now(),
+      status: "Pending",
+      txHash: null,
+      validFrom: createdAt,
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt
+    };
+
+    this.roots.set(root.id, root);
+    return root;
   }
 }
 
