@@ -335,6 +335,13 @@ select {
   color: var(--accent-strong);
 }
 
+.summary-list {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .progress-track {
   height: 10px;
   border-radius: 999px;

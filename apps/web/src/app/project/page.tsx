@@ -1,4 +1,5 @@
 import { EligibilityPanel } from "../../features/project/eligibility-panel";
+import { MilestonePanel } from "../../features/project/milestone-panel";
 
 export default function ProjectPage() {
   return (
@@ -8,6 +9,10 @@ export default function ProjectPage() {
       <section className="section">
         <h2 className="section-title">Eligibility</h2>
         <EligibilityPanel />
+      </section>
+      <section className="section stacked-section">
+        <h2 className="section-title">Milestone payout</h2>
+        <MilestonePanel />
       </section>
     </>
   );

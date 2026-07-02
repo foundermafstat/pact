@@ -168,6 +168,20 @@ export class PactApiClient {
     });
   }
 
+  public getMilestoneProofInput(programId: string, milestoneKey: string, wallet: string) {
+    return this.request(
+      `/api/attestor/programs/${programId}/milestones/${milestoneKey}`,
+      {
+        method: "GET",
+        headers: {
+          "x-pact-role": "Project",
+          "x-pact-wallet": wallet
+        },
+        schema: UnknownSuccessSchema
+      }
+    );
+  }
+
   public getProof(proofId: string) {
     return this.request(`/api/proofs/${proofId}`, {
       method: "GET",
@@ -188,13 +202,15 @@ export class PactApiClient {
     options: {
       method: "GET" | "POST";
       body?: unknown;
+      headers?: Record<string, string>;
       schema: Parser<T>;
     }
   ): Promise<T> {
     const init: RequestInit = {
       method: options.method,
       headers: {
-        "content-type": "application/json"
+        "content-type": "application/json",
+        ...options.headers
       }
     };
     if (options.body !== undefined) {
