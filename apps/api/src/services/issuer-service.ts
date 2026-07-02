@@ -125,6 +125,25 @@ export class IssuerService {
     this.roots.set(root.id, publishedRoot);
     return publishedRoot;
   }
+
+  public revokeCredential(credentialId: string): CredentialDto | undefined {
+    const issuedCredential = this.credentials.get(credentialId);
+    if (!issuedCredential) {
+      return undefined;
+    }
+
+    const revokedCredential = {
+      ...issuedCredential.credential,
+      status: "Revoked" as const
+    };
+
+    this.credentials.set(credentialId, {
+      ...issuedCredential,
+      credential: revokedCredential
+    });
+
+    return revokedCredential;
+  }
 }
 
 export const issuerService = new IssuerService();

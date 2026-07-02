@@ -39,5 +39,15 @@ export const registerIssuerRoutes = async (app: FastifyInstance): Promise<void> 
 
     return { data: root };
   });
-  app.post("/api/issuer/credentials/:credentialId/revoke", notImplementedHandler);
+  app.post<{ Params: { credentialId: string } }>(
+    "/api/issuer/credentials/:credentialId/revoke",
+    async (request) => {
+      const credential = issuerService.revokeCredential(request.params.credentialId);
+      if (!credential) {
+        throw new ApiError(404, "credential_not_found", "Credential was not found");
+      }
+
+      return { data: credential };
+    }
+  );
 };

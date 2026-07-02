@@ -90,4 +90,61 @@ describe("Issuer root APIs", () => {
 
     await app.close();
   });
+
+  it("rotates credential root after revocation", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const credentialOne = await app.inject({
+      method: "POST",
+      url: "/api/issuer/credentials/mock",
+      payload: {
+        wallet: "GPROJECT1",
+        isAccredited: true,
+        isNonUs: false,
+        jurisdictionCode: "US",
+        sanctionsPassed: true,
+        expiresAt: 1785600000
+      }
+    });
+    await app.inject({
+      method: "POST",
+      url: "/api/issuer/credentials/mock",
+      payload: {
+        wallet: "GPROJECT2",
+        isAccredited: false,
+        isNonUs: true,
+        jurisdictionCode: "EU",
+        sanctionsPassed: true,
+        expiresAt: 1785600000
+      }
+    });
+
+    const firstRoot = await app.inject({
+      method: "POST",
+      url: "/api/issuer/roots/build",
+      payload: {
+        policyId,
+        rootType: "Credential"
+      }
+    });
+
+    const revokeResponse = await app.inject({
+      method: "POST",
+      url: `/api/issuer/credentials/${credentialOne.json().data.credential.id}/revoke`
+    });
+    expect(revokeResponse.json().data.status).toBe("Revoked");
+
+    const rotatedRoot = await app.inject({
+      method: "POST",
+      url: "/api/issuer/roots/build",
+      payload: {
+        policyId,
+        rootType: "Credential"
+      }
+    });
+
+    expect(rotatedRoot.json().data.root).not.toBe(firstRoot.json().data.root);
+
+    await app.close();
+  });
 });
