@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "build": "pnpm -r --if-present build"
+    "build": "pnpm -r --if-present build",
+    "deploy:contracts": "tsx scripts/deploy/contracts.ts"
   },
   "devDependencies": {
     "@types/node": "^25.0.2",
