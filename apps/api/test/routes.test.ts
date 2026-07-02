@@ -17,7 +17,6 @@ describe("API route registry", () => {
     const app = await buildApiServer(testConfig);
 
     const endpoints = [
-      ["POST", "/api/attestor/milestone-evidence/mock"],
       ["POST", "/api/attestor/milestone-root/build"],
       ["POST", "/api/attestor/milestone-root/publish"],
       ["GET", "/api/attestor/programs/program-1/milestones/M1"],
@@ -39,7 +38,7 @@ describe("API route registry", () => {
     const app = await buildApiServer(testConfig);
     const response = await app.inject({
       method: "POST",
-      url: "/api/attestor/milestone-evidence/mock"
+      url: "/api/attestor/milestone-root/build"
     });
 
     await app.close();
