@@ -63,6 +63,7 @@ pub enum MilestoneEscrowError {
     WrongRecipient = 17,
     WrongAmount = 18,
     TrancheNotLocked = 19,
+    TrancheNotReady = 20,
 }
 
 #[contract]
@@ -329,6 +330,24 @@ impl MilestoneEscrow {
         milestone_id: BytesN<32>,
     ) -> bool {
         Self::read_bool(&env, DataKey::MilestoneVerified(program_id, milestone_id))
+    }
+
+    pub fn release_tranche(env: Env, program_id: BytesN<32>, milestone_id: BytesN<32>) {
+        let program = Self::read_program(&env, program_id.clone());
+        if program.status != ProgramStatus::Active {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidProgramStatus);
+        }
+
+        let key = DataKey::Tranche(program_id.clone(), milestone_id.clone());
+        let mut tranche = Self::read_tranche(&env, program_id, milestone_id);
+
+        if tranche.status != TrancheStatus::Ready {
+            panic_with_error!(&env, MilestoneEscrowError::TrancheNotReady);
+        }
+
+        tranche.status = TrancheStatus::Released;
+        tranche.released_at = Some(env.ledger().timestamp());
+        env.storage().persistent().set(&key, &tranche);
     }
 
     pub fn mock_proof_marker(env: &Env) -> BytesN<32> {
@@ -770,5 +789,47 @@ mod tests {
             &MilestoneEscrow::mock_proof_marker(&env),
             &inputs,
         );
+    }
+
+    #[test]
+    fn releases_ready_tranche() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &milestone_inputs(&env, &release_to),
+        );
+        client.release_tranche(&id(&env, 1), &id(&env, 3));
+
+        let tranche = client.get_tranche(&id(&env, 1), &id(&env, 3));
+        assert!(matches!(tranche.status, TrancheStatus::Released));
+        assert!(tranche.released_at.is_some());
+    }
+
+    #[test]
+    #[should_panic]
+    fn same_tranche_cannot_release_twice() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+        let release_to = Address::generate(&env);
+
+        eligible_program(&env, &client, &project, &asset, &release_to);
+        client.submit_milestone_proof(
+            &id(&env, 1),
+            &id(&env, 3),
+            &MilestoneEscrow::mock_proof_marker(&env),
+            &milestone_inputs(&env, &release_to),
+        );
+        client.release_tranche(&id(&env, 1), &id(&env, 3));
+        client.release_tranche(&id(&env, 1), &id(&env, 3));
     }
 }
