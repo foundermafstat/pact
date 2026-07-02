@@ -1,3 +1,10 @@
 # Pact Soroban Contracts
 
-Contract crates will be added here for `PolicyRegistry`, `RootRegistry`, `NullifierRegistry`, `VerifierAdapter`, `MilestoneEscrow`, and optional `GatedAssetController`.
+Rust workspace for Pact MVP Soroban contracts:
+
+- `policy-registry`
+- `root-registry`
+- `nullifier-registry`
+- `verifier-adapter`
+- `milestone-escrow`
+- `gated-asset-controller`

@@ -1,0 +1,13 @@
+#![no_std]
+
+use soroban_sdk::{contract, contractimpl};
+
+#[contract]
+pub struct VerifierAdapter;
+
+#[contractimpl]
+impl VerifierAdapter {
+    pub fn version() -> u32 {
+        1
+    }
+}
