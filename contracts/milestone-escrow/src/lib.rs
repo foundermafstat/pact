@@ -21,6 +21,7 @@ pub enum MilestoneEscrowError {
     InvalidAmount = 3,
     TrancheAlreadyExists = 4,
     TrancheNotFound = 5,
+    Overfunded = 6,
 }
 
 #[contract]
@@ -106,6 +107,23 @@ impl MilestoneEscrow {
 
     pub fn get_tranche(env: Env, program_id: BytesN<32>, milestone_id: BytesN<32>) -> Tranche {
         Self::read_tranche(&env, program_id, milestone_id)
+    }
+
+    pub fn fund_program(env: Env, program_id: BytesN<32>, amount: i128) {
+        if amount <= 0 {
+            panic_with_error!(&env, MilestoneEscrowError::InvalidAmount);
+        }
+
+        let key = DataKey::Program(program_id.clone());
+        let mut program = Self::read_program(&env, program_id);
+        let next_funded_amount = program.funded_amount + amount;
+
+        if next_funded_amount > program.total_amount {
+            panic_with_error!(&env, MilestoneEscrowError::Overfunded);
+        }
+
+        program.funded_amount = next_funded_amount;
+        env.storage().persistent().set(&key, &program);
     }
 
     fn read_program(env: &Env, program_id: BytesN<32>) -> Program {
@@ -223,5 +241,44 @@ mod tests {
 
         client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
         client.add_tranche(&id(&env, 1), &id(&env, 3), &id(&env, 4), &0, &release_to);
+    }
+
+    #[test]
+    fn funds_program() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+
+        client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
+        client.fund_program(&id(&env, 1), &400);
+        client.fund_program(&id(&env, 1), &600);
+
+        let program = client.get_program(&id(&env, 1));
+        assert_eq!(program.funded_amount, 1000);
+    }
+
+    #[test]
+    #[should_panic]
+    fn wrong_funding_amount_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+
+        client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
+        client.fund_program(&id(&env, 1), &0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn overfunding_fails() {
+        let env = Env::default();
+        let client = client(&env);
+        let project = Address::generate(&env);
+        let asset = Address::generate(&env);
+
+        client.create_program(&id(&env, 1), &project, &asset, &1000, &id(&env, 2));
+        client.fund_program(&id(&env, 1), &1001);
     }
 }
