@@ -125,5 +125,12 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     return { data: completedJob };
   });
   app.post("/api/proofs/milestone/submit", notImplementedHandler);
-  app.get("/api/proofs/:proofId", notImplementedHandler);
+  app.get<{ Params: { proofId: string } }>("/api/proofs/:proofId", async (request) => {
+    const job = proofJobService.getJob(request.params.proofId);
+    if (!job) {
+      throw new ApiError(404, "proof_job_not_found", "Proof job was not found");
+    }
+
+    return { data: job };
+  });
 };

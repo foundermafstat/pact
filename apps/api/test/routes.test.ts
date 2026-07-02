@@ -17,8 +17,7 @@ describe("API route registry", () => {
     const app = await buildApiServer(testConfig);
 
     const endpoints = [
-      ["POST", "/api/proofs/milestone/submit"],
-      ["GET", "/api/proofs/proof-1"]
+      ["POST", "/api/proofs/milestone/submit"]
     ] as const;
 
     for (const [method, url] of endpoints) {

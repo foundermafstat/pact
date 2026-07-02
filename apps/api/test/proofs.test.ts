@@ -191,4 +191,58 @@ describe("Proof APIs", () => {
 
     await app.close();
   });
+
+  it("returns proof job status without private fields", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const credentialResponse = await app.inject({
+      method: "POST",
+      url: "/api/issuer/credentials/mock",
+      payload: {
+        wallet: "GPROJECT",
+        isAccredited: true,
+        isNonUs: false,
+        jurisdictionCode: "US",
+        sanctionsPassed: true,
+        expiresAt: 1785600000
+      }
+    });
+    const credentialId = credentialResponse.json().data.credential.id;
+    const generateResponse = await app.inject({
+      method: "POST",
+      url: "/api/proofs/eligibility/generate",
+      payload: {
+        credentialId
+      }
+    });
+    const proofJobId = generateResponse.json().data.id;
+
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: `/api/proofs/${proofJobId}`
+    });
+
+    const body = statusResponse.json().data;
+    expect(statusResponse.statusCode).toBe(200);
+    expect(body.status).toBe("Succeeded");
+    expect(body.publicInputsJson.nullifier).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(JSON.stringify(body)).not.toContain("privateInputs");
+    expect(JSON.stringify(body)).not.toContain("credentialSecret");
+
+    await app.close();
+  });
+
+  it("returns 404 for unknown proof jobs", async () => {
+    const app = await buildApiServer(testConfig);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/proofs/11111111-1111-4111-8111-111111111111"
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.code).toBe("proof_job_not_found");
+
+    await app.close();
+  });
 });
