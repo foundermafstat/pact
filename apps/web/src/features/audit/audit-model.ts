@@ -14,13 +14,16 @@ export const auditTimelineFixture: PublicAuditTimelineItem[] = [
   { type: "Tranche released", message: "Tranche released", publicFields: { amount: "50000000" } }
 ];
 
-const privatePattern = /activeUsers|pilotPartners|credential_secret|project_secret|privateMetrics/i;
-
 export const toPublicAuditText = (items: PublicAuditTimelineItem[]): string =>
   items
-    .map((item) =>
-      [item.type, item.message, ...Object.values(item.publicFields)]
-        .filter((value) => !privatePattern.test(value))
-        .join(" ")
-    )
+    .map((item) => {
+      const text = [
+        item.type,
+        item.message,
+        ...Object.values(stripPrivateFields(item.publicFields))
+      ].join(" ");
+      assertPublicText(text);
+      return text;
+    })
     .join("\n");
+import { assertPublicText, stripPrivateFields } from "../privacy/privacy-guards";
