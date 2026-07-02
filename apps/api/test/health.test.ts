@@ -9,7 +9,9 @@ describe("GET /health", () => {
       appEnv: "test",
       host: "127.0.0.1",
       port: 0,
-      corsOrigin: "http://localhost:3000"
+      corsOrigin: "http://localhost:3000",
+      redisUrl: "redis://localhost:6379",
+      bullmqPrefix: "pact-test"
     });
 
     const response = await app.inject({
