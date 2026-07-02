@@ -9,6 +9,7 @@ dist/
 build/
 coverage/
 target/
+circuits/artifacts/
 
 *.log
 .DS_Store

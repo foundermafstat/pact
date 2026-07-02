@@ -14,10 +14,15 @@
     "zk:test:eligibility": "bash circuits/scripts/test-eligibility.sh",
     "zk:compile:milestone": "bash circuits/scripts/compile-milestone.sh",
     "zk:test:milestone": "bash circuits/scripts/test-milestone.sh",
+    "zk:setup:dev-ptau": "bash circuits/scripts/ensure-dev-ptau.sh",
+    "zk:prove:eligibility": "bash circuits/scripts/snarkjs-pipeline.sh eligibility all",
+    "zk:prove:milestone": "bash circuits/scripts/snarkjs-pipeline.sh milestone all",
+    "zk:test:proofs": "bash circuits/scripts/snarkjs-pipeline.sh eligibility all && bash circuits/scripts/snarkjs-pipeline.sh milestone all",
     "deploy:contracts": "tsx scripts/deploy/contracts.ts"
   },
   "devDependencies": {
     "@types/node": "^25.0.2",
+    "snarkjs": "^0.7.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
