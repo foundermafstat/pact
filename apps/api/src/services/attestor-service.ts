@@ -140,6 +140,22 @@ export class AttestorService {
     return { root, commitments };
   }
 
+  public publishMilestoneRoot(rootId: string): RootDto | undefined {
+    const root = this.roots.get(rootId);
+    if (!root) {
+      return undefined;
+    }
+
+    const publishedRoot = {
+      ...root,
+      status: "Active" as const,
+      txHash: sha256Hex(`milestone-root-publish:${root.id}:${root.root}`)
+    };
+
+    this.roots.set(root.id, publishedRoot);
+    return publishedRoot;
+  }
+
   private validateMilestoneMetrics(input: CreateMilestoneEvidenceRequest): void {
     if (input.metrics.activeUsers < 500) {
       throw new Error("active_users below threshold");

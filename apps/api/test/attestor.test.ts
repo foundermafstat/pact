@@ -129,4 +129,48 @@ describe("Attestor APIs", () => {
 
     await app.close();
   });
+
+  it("publishes a pending milestone root with a tx hash", async () => {
+    const app = await buildApiServer(testConfig);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-evidence/mock",
+      payload: {
+        programId: "11111111-1111-4111-8111-111111111111",
+        milestoneKey: "M1",
+        metrics: {
+          activeUsers: 735,
+          pilotPartners: 4,
+          auditPassed: true
+        },
+        sourceRefs: ["mock_github_release_001"]
+      }
+    });
+
+    const buildResponse = await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/build",
+      payload: {
+        policyId: "22222222-2222-4222-8222-222222222222",
+        rootType: "MilestoneMetrics"
+      }
+    });
+    const rootId = buildResponse.json().data.root.id;
+
+    const publishResponse = await app.inject({
+      method: "POST",
+      url: "/api/attestor/milestone-root/publish",
+      payload: {
+        rootId
+      }
+    });
+
+    const body = publishResponse.json().data;
+    expect(publishResponse.statusCode).toBe(200);
+    expect(body.status).toBe("Active");
+    expect(body.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+    await app.close();
+  });
 });

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import {
   CreateMilestoneEvidenceRequestSchema,
-  RootBuildRequestSchema
+  RootBuildRequestSchema,
+  RootPublishRequestSchema
 } from "@pact/shared";
 
 import { notImplementedHandler } from "./not-implemented";
@@ -37,7 +38,15 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
       );
     }
   });
-  app.post("/api/attestor/milestone-root/publish", notImplementedHandler);
+  app.post("/api/attestor/milestone-root/publish", async (request) => {
+    const body = RootPublishRequestSchema.parse(request.body);
+    const root = attestorService.publishMilestoneRoot(body.rootId);
+    if (!root) {
+      throw new ApiError(404, "root_not_found", "Root was not found");
+    }
+
+    return { data: root };
+  });
   app.get(
     "/api/attestor/programs/:programId/milestones/:milestoneId",
     notImplementedHandler
