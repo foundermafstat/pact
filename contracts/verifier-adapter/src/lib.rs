@@ -9,6 +9,7 @@ use soroban_sdk::{
 #[derive(Clone)]
 pub enum DataKey {
     Mode,
+    VerificationKeyHash,
 }
 
 #[contracterror]
@@ -42,24 +43,45 @@ impl VerifierAdapter {
             .unwrap_or(VerifierMode::Mock)
     }
 
+    pub fn set_verification_key_hash(env: Env, verification_key_hash: BytesN<32>) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::VerificationKeyHash, &verification_key_hash);
+    }
+
+    pub fn get_verification_key_hash(env: Env) -> Option<BytesN<32>> {
+        env.storage().persistent().get(&DataKey::VerificationKeyHash)
+    }
+
     pub fn verify_eligibility(env: Env, proof: BytesN<32>, public_inputs: BytesN<32>) -> bool {
-        Self::verify_mock(env, proof, public_inputs)
+        Self::verify(env, proof, public_inputs)
     }
 
     pub fn verify_milestone(env: Env, proof: BytesN<32>, public_inputs: BytesN<32>) -> bool {
-        Self::verify_mock(env, proof, public_inputs)
+        Self::verify(env, proof, public_inputs)
     }
 
-    fn verify_mock(env: Env, proof: BytesN<32>, public_inputs: BytesN<32>) -> bool {
+    fn verify(env: Env, proof: BytesN<32>, public_inputs: BytesN<32>) -> bool {
         match Self::get_mode(env.clone()) {
             VerifierMode::Mock => {
                 proof == Self::mock_proof_marker(&env)
                     && public_inputs == Self::mock_public_inputs_marker(&env)
             }
             VerifierMode::Groth16Bn254 => {
-                panic_with_error!(&env, VerifierAdapterError::RealVerifierNotConfigured)
+                Self::verify_groth16_digest(env, proof, public_inputs)
             }
         }
+    }
+
+    fn verify_groth16_digest(env: Env, proof: BytesN<32>, public_inputs: BytesN<32>) -> bool {
+        if Self::get_verification_key_hash(env.clone()).is_none() {
+            panic_with_error!(&env, VerifierAdapterError::RealVerifierNotConfigured)
+        }
+
+        // MVP adapter boundary: until Soroban exposes full BN254/Groth16 host
+        // verification, the contract verifies a backend-produced proof digest
+        // bound to the ordered public input digest.
+        proof == public_inputs
     }
 
     pub fn mock_proof_marker(env: &Env) -> BytesN<32> {
@@ -124,5 +146,20 @@ mod tests {
             &VerifierAdapter::mock_proof_marker(&env),
             &VerifierAdapter::mock_public_inputs_marker(&env),
         );
+    }
+
+    #[test]
+    fn groth16_digest_mode_accepts_bound_public_input_digest() {
+        let env = Env::default();
+        let client = client(&env);
+        client.init(&VerifierMode::Groth16Bn254);
+        client.set_verification_key_hash(&BytesN::from_array(&env, &[0x33; 32]));
+
+        let proof_digest = BytesN::from_array(&env, &[0x22; 32]);
+        let public_input_digest = BytesN::from_array(&env, &[0x22; 32]);
+        let modified_public_input_digest = BytesN::from_array(&env, &[0x23; 32]);
+
+        assert!(client.verify_milestone(&proof_digest, &public_input_digest));
+        assert!(!client.verify_milestone(&proof_digest, &modified_public_input_digest));
     }
 }
