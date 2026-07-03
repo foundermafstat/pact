@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import type {
+  ApproveStartupPoolApplicationRequest,
   CreateInvestmentPoolRequest,
   InvestmentCommitmentDto,
   InvestmentPoolDto,
+  StartupPoolApplicationDto,
   StartupProfileDto
 } from "@pact/shared";
 
@@ -48,27 +50,48 @@ const defaultPoolForm: PoolForm = {
 const shortWallet = (wallet: string): string =>
   wallet.length > 12 ? `${wallet.slice(0, 6)}...${wallet.slice(-6)}` : wallet;
 
+const defaultPeriodStart = (): string => {
+  const date = new Date();
+  date.setUTCDate(1);
+  return date.toISOString().slice(0, 10);
+};
+
+const defaultPeriodEnd = (): string => new Date().toISOString().slice(0, 10);
+
+type ApprovalInput = {
+  amount: string;
+  releaseToWallet: string;
+  thresholdCents: string;
+  mrrCurrency: string;
+  periodStart: string;
+  periodEnd: string;
+};
+
 export function InvestorMarketplacePanel() {
   const client = useMemo(() => new PactApiClient(webEnv.apiUrl), []);
   const [poolForm, setPoolForm] = useState<PoolForm>(defaultPoolForm);
   const [startups, setStartups] = useState<StartupProfileDto[]>([]);
   const [pools, setPools] = useState<InvestmentPoolDto[]>([]);
+  const [applications, setApplications] = useState<StartupPoolApplicationDto[]>([]);
   const [commitments, setCommitments] = useState<InvestmentCommitmentDto[]>([]);
   const [commitmentInputs, setCommitmentInputs] = useState<
     Record<string, { amount: string; currency: string; note: string }>
   >({});
+  const [approvalInputs, setApprovalInputs] = useState<Record<string, ApprovalInput>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const loadData = useCallback(async () => {
     try {
-      const [startupResponse, poolResponse, commitmentResponse] = await Promise.all([
+      const [startupResponse, poolResponse, applicationResponse, commitmentResponse] = await Promise.all([
         client.listStartupProfiles(),
         client.listInvestmentPools("mine"),
+        client.listIncomingPoolApplications(),
         client.listMyInvestmentCommitments()
       ]);
       setStartups(startupResponse.data);
       setPools(poolResponse.data);
+      setApplications(applicationResponse.data);
       setCommitments(commitmentResponse.data);
     } catch (caughtError) {
       setError(
@@ -104,6 +127,26 @@ export function InvestorMarketplacePanel() {
     }));
   };
 
+  const approvalInputFor = (application: StartupPoolApplicationDto): ApprovalInput =>
+    approvalInputs[application.id] ?? {
+      amount: application.startupProfile?.requestedAmount ?? "",
+      releaseToWallet: application.founderWallet,
+      thresholdCents: "1000000",
+      mrrCurrency: "usd",
+      periodStart: defaultPeriodStart(),
+      periodEnd: defaultPeriodEnd()
+    };
+
+  const updateApprovalInput = (application: StartupPoolApplicationDto, patch: Partial<ApprovalInput>) => {
+    setApprovalInputs((current) => ({
+      ...current,
+      [application.id]: {
+        ...approvalInputFor(application),
+        ...patch
+      }
+    }));
+  };
+
   const createCommitment = (startupId: string) => {
     const input = commitmentInputs[startupId] ?? {
       amount: "",
@@ -125,6 +168,61 @@ export function InvestorMarketplacePanel() {
           caughtError instanceof PactApiClientError
             ? caughtError.message
             : "Investment commitment failed"
+        );
+      }
+    });
+  };
+
+  const approveApplication = (application: StartupPoolApplicationDto) => {
+    const input = approvalInputFor(application);
+    const payload: ApproveStartupPoolApplicationRequest = {
+      approvedAmount: input.amount,
+      assetContract: application.investmentPool?.currency ?? "USDC",
+      eligibilityPolicyId: "marketplace-eligibility",
+      tranches: [
+        {
+          milestoneKey: "M1",
+          milestonePolicyId: "stripe-mrr-policy",
+          amount: input.amount,
+          releaseToWallet: input.releaseToWallet,
+          mrrThresholdCents: input.thresholdCents,
+          mrrCurrency: input.mrrCurrency,
+          mrrPeriodStart: input.periodStart,
+          mrrPeriodEnd: input.periodEnd
+        }
+      ]
+    };
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        const response = await client.approvePoolApplication(application.id, payload);
+        setApplications((current) =>
+          current.map((item) => (item.id === response.data.id ? response.data : item))
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof PactApiClientError
+            ? caughtError.message
+            : "Application approval failed"
+        );
+      }
+    });
+  };
+
+  const rejectApplication = (applicationId: string) => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const response = await client.rejectPoolApplication(applicationId);
+        setApplications((current) =>
+          current.map((item) => (item.id === response.data.id ? response.data : item))
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof PactApiClientError
+            ? caughtError.message
+            : "Application rejection failed"
         );
       }
     });
@@ -245,6 +343,150 @@ export function InvestorMarketplacePanel() {
           </Alert>
         ) : null}
       </form>
+
+      <div className="flex min-w-0 flex-col gap-3">
+        <h2 className="text-base font-semibold">Incoming startup applications</h2>
+        <div className="grid gap-3 xl:grid-cols-2">
+          {applications.map((application) => {
+            const input = approvalInputFor(application);
+            const startup = application.startupProfile;
+            const pool = application.investmentPool;
+
+            return (
+              <div className="min-w-0 rounded-md border p-4" key={application.id}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <div className="font-medium">{startup?.name ?? "Startup application"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {pool?.name ?? application.investmentPoolId.slice(0, 8)}
+                    </div>
+                  </div>
+                  <Badge variant={application.status === "Accepted" ? "default" : "secondary"}>
+                    {application.status}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                  {application.note}
+                </p>
+                {startup ? (
+                  <div className="mt-3 grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
+                    <span>{startup.industry} / {startup.stage}</span>
+                    <span>
+                      Requested {startup.requestedAmount} {startup.currency}
+                    </span>
+                    <span className="[overflow-wrap:anywhere] md:col-span-2">
+                      {startup.traction}
+                    </span>
+                  </div>
+                ) : null}
+                {application.programId ? (
+                  <div className="mt-4 rounded-md border p-3 text-sm">
+                    Program {application.programId.slice(0, 8)} created with{" "}
+                    {application.tranches?.length ?? 0} milestone(s).
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor={`approval-amount-${application.id}`}>Approved amount</Label>
+                        <Input
+                          id={`approval-amount-${application.id}`}
+                          inputMode="numeric"
+                          value={input.amount}
+                          onChange={(event) =>
+                            updateApprovalInput(application, { amount: event.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor={`approval-wallet-${application.id}`}>Release wallet</Label>
+                        <Input
+                          id={`approval-wallet-${application.id}`}
+                          value={input.releaseToWallet}
+                          onChange={(event) =>
+                            updateApprovalInput(application, {
+                              releaseToWallet: event.target.value
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor={`approval-threshold-${application.id}`}>MRR cents</Label>
+                        <Input
+                          id={`approval-threshold-${application.id}`}
+                          inputMode="numeric"
+                          value={input.thresholdCents}
+                          onChange={(event) =>
+                            updateApprovalInput(application, {
+                              thresholdCents: event.target.value
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor={`approval-currency-${application.id}`}>Stripe currency</Label>
+                        <Input
+                          id={`approval-currency-${application.id}`}
+                          value={input.mrrCurrency}
+                          onChange={(event) =>
+                            updateApprovalInput(application, { mrrCurrency: event.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor={`approval-start-${application.id}`}>Period start</Label>
+                        <Input
+                          id={`approval-start-${application.id}`}
+                          type="date"
+                          value={input.periodStart}
+                          onChange={(event) =>
+                            updateApprovalInput(application, { periodStart: event.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor={`approval-end-${application.id}`}>Period end</Label>
+                        <Input
+                          id={`approval-end-${application.id}`}
+                          type="date"
+                          value={input.periodEnd}
+                          onChange={(event) =>
+                            updateApprovalInput(application, { periodEnd: event.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        disabled={isPending || application.status === "Rejected"}
+                        onClick={() => approveApplication(application)}
+                        type="button"
+                      >
+                        Approve startup
+                      </Button>
+                      <Button
+                        disabled={isPending}
+                        onClick={() => rejectApplication(application.id)}
+                        type="button"
+                        variant="outline"
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {applications.length === 0 ? (
+            <div className="rounded-md border p-4 text-sm text-muted-foreground">
+              No incoming applications yet.
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="flex min-w-0 flex-col gap-3">

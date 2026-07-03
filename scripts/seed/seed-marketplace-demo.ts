@@ -142,6 +142,77 @@ const upsertCommitment = async (data: {
       });
 };
 
+const upsertApprovedProgram = async (data: {
+  applicationId: string;
+  sponsorWallet: string;
+  projectWallet: string;
+  assetContract: string;
+  totalAmount: string;
+  releaseToWallet: string;
+}) => {
+  const program = await prisma.program.upsert({
+    where: { programKey: `marketplace-${data.applicationId}` },
+    update: {
+      sponsorWallet: data.sponsorWallet,
+      projectWallet: data.projectWallet,
+      assetContract: data.assetContract,
+      totalAmount: data.totalAmount,
+      fundedAmount: data.totalAmount,
+      status: "Active",
+      eligibilityPolicyId: "marketplace-eligibility"
+    },
+    create: {
+      programKey: `marketplace-${data.applicationId}`,
+      sponsorWallet: data.sponsorWallet,
+      projectWallet: data.projectWallet,
+      assetContract: data.assetContract,
+      totalAmount: data.totalAmount,
+      fundedAmount: data.totalAmount,
+      status: "Active",
+      eligibilityPolicyId: "marketplace-eligibility"
+    }
+  });
+
+  await prisma.tranche.upsert({
+    where: {
+      programId_milestoneKey: {
+        programId: program.id,
+        milestoneKey: "M1"
+      }
+    },
+    update: {
+      milestonePolicyId: "stripe-mrr-policy",
+      amount: data.totalAmount,
+      releaseToWallet: data.releaseToWallet,
+      mrrThresholdCents: "2500000",
+      mrrCurrency: "usd",
+      mrrPeriodStart: new Date("2026-07-01T00:00:00.000Z"),
+      mrrPeriodEnd: new Date("2026-08-01T00:00:00.000Z"),
+      status: "Locked"
+    },
+    create: {
+      programId: program.id,
+      milestoneKey: "M1",
+      milestonePolicyId: "stripe-mrr-policy",
+      amount: data.totalAmount,
+      releaseToWallet: data.releaseToWallet,
+      mrrThresholdCents: "2500000",
+      mrrCurrency: "usd",
+      mrrPeriodStart: new Date("2026-07-01T00:00:00.000Z"),
+      mrrPeriodEnd: new Date("2026-08-01T00:00:00.000Z"),
+      status: "Locked"
+    }
+  });
+
+  await prisma.startupPoolApplication.update({
+    where: { id: data.applicationId },
+    data: {
+      programId: program.id,
+      status: "Accepted"
+    }
+  });
+};
+
 const main = async (): Promise<void> => {
   await Promise.all([
     ensureAccount(founders.aima, ["Project"]),
@@ -368,6 +439,25 @@ const main = async (): Promise<void> => {
       }
     })
   ]);
+
+  const acceptedClimateApplication = await prisma.startupPoolApplication.findUnique({
+    where: {
+      startupProfileId_investmentPoolId: {
+        startupProfileId: carbongrid.id,
+        investmentPoolId: climateSyndicate.id
+      }
+    }
+  });
+  if (acceptedClimateApplication) {
+    await upsertApprovedProgram({
+      applicationId: acceptedClimateApplication.id,
+      sponsorWallet: investors.angel,
+      projectWallet: founders.carbongrid,
+      assetContract: "USDC",
+      totalAmount: "400000",
+      releaseToWallet: founders.carbongrid
+    });
+  }
 
   const [startupCount, poolCount, applicationCount, commitmentCount] = await Promise.all([
     prisma.startupProfile.count(),

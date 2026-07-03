@@ -1,12 +1,5 @@
 import { RoleGate } from "@/components/auth/role-gate";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -30,31 +23,11 @@ export default function AdminMarketplacePage() {
             <TabsTrigger value="startup">Startup workspace</TabsTrigger>
             <TabsTrigger value="investor">Investor workspace</TabsTrigger>
           </TabsList>
-          <TabsContent className="min-w-0" value="startup">
-            <Card className="min-w-0">
-              <CardHeader>
-                <CardTitle>Startup workspace</CardTitle>
-                <CardDescription>
-                  Startup placement, available pools, grants, and applications.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StartupProfilePanel />
-              </CardContent>
-            </Card>
+          <TabsContent className="min-w-0 pt-4" value="startup">
+            <StartupProfilePanel />
           </TabsContent>
-          <TabsContent className="min-w-0" value="investor">
-            <Card className="min-w-0">
-              <CardHeader>
-                <CardTitle>Investor workspace</CardTitle>
-                <CardDescription>
-                  Startup catalog, investor commitments, investment pools, and grant offers.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <InvestorMarketplacePanel />
-              </CardContent>
-            </Card>
+          <TabsContent className="min-w-0 pt-4" value="investor">
+            <InvestorMarketplacePanel />
           </TabsContent>
         </Tabs>
       </div>

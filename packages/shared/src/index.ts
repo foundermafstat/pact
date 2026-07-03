@@ -2,6 +2,7 @@ export const sharedPackageName = "@pact/shared";
 export {
   AmountSchema,
   ApplyToInvestmentPoolRequestSchema,
+  ApproveStartupPoolApplicationRequestSchema,
   ApiErrorResponseSchema,
   ApiSuccessResponseSchema,
   AssignWalletRoleRequestSchema,
@@ -42,6 +43,7 @@ export {
   StripeRevenueSnapshotDtoSchema,
   StripeRevenueSnapshotPublicSchema,
   SubmitMilestoneProofRequestSchema,
+  SubmitStripeRevenueProofRequestSchema,
   TimestampSchema,
   TrancheDtoSchema,
   TransactionHashSchema,
@@ -67,6 +69,7 @@ export {
 export type {
   AssignWalletRoleRequest,
   ApplyToInvestmentPoolRequest,
+  ApproveStartupPoolApplicationRequest,
   AuthChallengeDto,
   AuthChallengeRequest,
   AuthSessionDto,
@@ -100,6 +103,7 @@ export type {
   StripeRevenueSnapshotDto,
   StripeRevenueSnapshotPublic,
   SubmitMilestoneProofRequest,
+  SubmitStripeRevenueProofRequest,
   TrancheDto,
   WalletRoleDto
 } from "./api-dto";

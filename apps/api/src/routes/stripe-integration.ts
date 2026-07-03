@@ -3,12 +3,17 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import {
   CreateStripeRevenueSnapshotRequestSchema,
-  GenerateStripeRevenueProofRequestSchema
+  GenerateStripeRevenueProofRequestSchema,
+  SubmitStripeRevenueProofRequestSchema
 } from "@pact/shared";
 import { z } from "zod";
 
 import { loadStripeIntegrationConfig } from "../config";
 import { ApiError } from "../errors";
+import {
+  escrowContractService,
+  SmartContractNotConfiguredError
+} from "../services/escrow-contract-service";
 import { proofJobService } from "../services/proof-job-service";
 import { programService } from "../services/program-service";
 import { stripeConnectorService } from "../services/stripe-connector-service";
@@ -462,6 +467,124 @@ export const registerStripeIntegrationRoutes = async (
       return { data: job };
     }
   );
+
+  app.post("/api/payment-proofs/stripe/revenue-threshold/submit", async (request) => {
+    await requireRole(request, ["Project", "Admin"]);
+    const parsed = SubmitStripeRevenueProofRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ApiError(
+        400,
+        "invalid_stripe_proof_submit_request",
+        "Stripe revenue proof submit request is invalid",
+        parsed.error.flatten()
+      );
+    }
+
+    const proofJob = proofJobService.getJob(parsed.data.proofJobId);
+    if (!proofJob) {
+      throw new ApiError(404, "proof_job_not_found", "Proof job was not found");
+    }
+    if (proofJob.proofType !== "PaymentRevenueThreshold" || proofJob.status !== "Succeeded") {
+      throw new ApiError(
+        400,
+        "proof_job_not_submittable",
+        "Only succeeded Stripe revenue proof jobs can be submitted"
+      );
+    }
+    if (proofJob.proofJson?.["accepted"] !== true) {
+      throw new ApiError(
+        400,
+        "revenue_threshold_not_met",
+        "Stripe MRR threshold was not met"
+      );
+    }
+
+    const record = await programService.getProgram(parsed.data.programId);
+    const tranche = record?.tranches.find(
+      (item) => item.milestoneKey === parsed.data.milestoneKey
+    );
+    if (!record || !tranche) {
+      throw new ApiError(404, "milestone_not_found", "Milestone was not found");
+    }
+    await requireProgramAccess(request, record.program, "startup");
+    if (tranche.status === "Released") {
+      throw new ApiError(400, "tranche_already_released", "Milestone tranche is already released");
+    }
+    if (!tranche.mrrThresholdCents || !tranche.mrrCurrency || !tranche.mrrPeriodStart || !tranche.mrrPeriodEnd) {
+      throw new ApiError(
+        400,
+        "milestone_mrr_policy_missing",
+        "Milestone does not have Stripe MRR policy fields"
+      );
+    }
+
+    const requestJson = proofJob.requestJson;
+    const publicInputs = proofJob.publicInputsJson ?? {};
+    const periodStartEpoch = Math.floor(new Date(tranche.mrrPeriodStart).getTime() / 1000);
+    const periodEndEpoch = Math.floor(new Date(tranche.mrrPeriodEnd).getTime() / 1000);
+    if (
+      requestJson["programId"] !== parsed.data.programId ||
+      requestJson["milestoneId"] !== parsed.data.milestoneKey ||
+      publicInputs["programId"] !== parsed.data.programId ||
+      publicInputs["milestoneId"] !== parsed.data.milestoneKey ||
+      publicInputs["thresholdCents"] !== tranche.mrrThresholdCents ||
+      publicInputs["currencyCode"] !== tranche.mrrCurrency ||
+      publicInputs["periodStartEpoch"] !== periodStartEpoch ||
+      publicInputs["periodEndEpoch"] !== periodEndEpoch ||
+      typeof publicInputs["snapshotCommitment"] !== "string" ||
+      typeof publicInputs["nullifier"] !== "string"
+    ) {
+      throw new ApiError(
+        400,
+        "stripe_proof_public_inputs_mismatch",
+        "Proof public inputs do not match the target MRR milestone"
+      );
+    }
+
+    let txHash: string;
+    try {
+      txHash = await escrowContractService.submitStripeMilestoneAndRelease({
+        program: record.program,
+        tranche,
+        milestoneRoot: String(publicInputs["snapshotCommitment"]),
+        milestoneNullifier: String(publicInputs["nullifier"])
+      });
+    } catch (error) {
+      if (error instanceof SmartContractNotConfiguredError) {
+        throw new ApiError(
+          400,
+          "smart_contract_not_configured",
+          "Smart contract release is not configured"
+        );
+      }
+      throw new ApiError(
+        502,
+        "smart_contract_release_failed",
+        error instanceof Error ? error.message : "Smart contract release failed"
+      );
+    }
+
+    const releasedTranche = await programService.releaseTranche(
+      parsed.data.programId,
+      parsed.data.milestoneKey,
+      txHash
+    );
+    if (!releasedTranche) {
+      throw new ApiError(
+        400,
+        "tranche_release_failed",
+        "Milestone tranche could not be released"
+      );
+    }
+
+    return {
+      data: {
+        proofJob,
+        tranche: releasedTranche,
+        txHash
+      }
+    };
+  });
 
   app.post("/api/webhooks/stripe", async (request) => {
     const config = loadStripeIntegrationConfig();

@@ -1,4 +1,4 @@
-import type { Program, Tranche } from "@prisma/client";
+import type { Prisma, Program, Tranche } from "@prisma/client";
 
 import type { CreateProgramRequest, ProgramDto, TrancheDto } from "@pact/shared";
 
@@ -50,6 +50,12 @@ const toTrancheDto = (tranche: Tranche): TrancheDto => ({
   milestonePolicyId: tranche.milestonePolicyId,
   amount: amountToString(tranche.amount),
   releaseToWallet: tranche.releaseToWallet,
+  mrrThresholdCents: tranche.mrrThresholdCents
+    ? amountToString(tranche.mrrThresholdCents)
+    : null,
+  mrrCurrency: tranche.mrrCurrency,
+  mrrPeriodStart: tranche.mrrPeriodStart?.toISOString() ?? null,
+  mrrPeriodEnd: tranche.mrrPeriodEnd?.toISOString() ?? null,
   status: tranche.status,
   releasedAt: tranche.releasedAt?.toISOString() ?? null,
   txHash: tranche.txHash
@@ -59,6 +65,33 @@ const toProgramRecord = (input: Program & { tranches: Tranche[] }): ProgramRecor
   program: toProgramDto(input),
   tranches: input.tranches.map(toTrancheDto)
 });
+
+const toTrancheCreateInput = (
+  tranche: CreateProgramRequest["tranches"][number]
+): Prisma.TrancheCreateWithoutProgramInput => {
+  const data: Prisma.TrancheCreateWithoutProgramInput = {
+    milestoneKey: tranche.milestoneKey.trim(),
+    milestonePolicyId: tranche.milestonePolicyId.trim(),
+    amount: tranche.amount,
+    releaseToWallet: normalizeWallet(tranche.releaseToWallet),
+    status: "Locked"
+  };
+
+  if (tranche.mrrThresholdCents) {
+    data.mrrThresholdCents = tranche.mrrThresholdCents;
+  }
+  if (tranche.mrrCurrency) {
+    data.mrrCurrency = tranche.mrrCurrency.trim().toLowerCase();
+  }
+  if (tranche.mrrPeriodStart) {
+    data.mrrPeriodStart = new Date(tranche.mrrPeriodStart);
+  }
+  if (tranche.mrrPeriodEnd) {
+    data.mrrPeriodEnd = new Date(tranche.mrrPeriodEnd);
+  }
+
+  return data;
+};
 
 export class ProgramService {
   public reset(): void {
@@ -79,13 +112,7 @@ export class ProgramService {
         status: "Draft",
         eligibilityPolicyId: input.eligibilityPolicyId.trim(),
         tranches: {
-          create: input.tranches.map((tranche) => ({
-            milestoneKey: tranche.milestoneKey.trim(),
-            milestonePolicyId: tranche.milestonePolicyId.trim(),
-            amount: tranche.amount,
-            releaseToWallet: normalizeWallet(tranche.releaseToWallet),
-            status: "Locked"
-          }))
+          create: input.tranches.map(toTrancheCreateInput)
         }
       },
       include: {

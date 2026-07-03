@@ -1,5 +1,6 @@
 import {
   ApplyToInvestmentPoolRequestSchema,
+  ApproveStartupPoolApplicationRequestSchema,
   ApiErrorResponseSchema,
   ApiSuccessResponseSchema,
   AssignWalletRoleRequestSchema,
@@ -33,10 +34,12 @@ import {
   StripeOAuthStartDtoSchema,
   StripeRevenueSnapshotDtoSchema,
   SubmitMilestoneProofRequestSchema,
+  SubmitStripeRevenueProofRequestSchema,
   TrancheDtoSchema,
   WalletRoleDtoSchema,
   type AssignWalletRoleRequest,
   type ApplyToInvestmentPoolRequest,
+  type ApproveStartupPoolApplicationRequest,
   type AuthChallengeRequest,
   type AuthVerifyRequest,
   type CreateInvestmentCommitmentRequest,
@@ -50,7 +53,8 @@ import {
   type GenerateStripeRevenueProofRequest,
   type GenerateProofRequest,
   type SelectAccountRoleRequest,
-  type SubmitMilestoneProofRequest
+  type SubmitMilestoneProofRequest,
+  type SubmitStripeRevenueProofRequest
 } from "@pact/shared";
 
 type Parser<T> = {
@@ -231,6 +235,31 @@ export class PactApiClient {
     });
   }
 
+  public listIncomingPoolApplications() {
+    return this.request("/api/investment-pool-applications/incoming", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema.array())
+    });
+  }
+
+  public approvePoolApplication(
+    applicationId: string,
+    input: ApproveStartupPoolApplicationRequest
+  ) {
+    return this.request(`/api/investment-pool-applications/${applicationId}/approve`, {
+      method: "POST",
+      body: ApproveStartupPoolApplicationRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema)
+    });
+  }
+
+  public rejectPoolApplication(applicationId: string) {
+    return this.request(`/api/investment-pool-applications/${applicationId}/reject`, {
+      method: "POST",
+      schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema)
+    });
+  }
+
   public createInvestmentCommitment(
     startupId: string,
     input: CreateInvestmentCommitmentRequest
@@ -406,6 +435,14 @@ export class PactApiClient {
     return this.request(`/api/payment-proofs/stripe/revenue-threshold/${proofJobId}`, {
       method: "GET",
       schema: ApiSuccessResponseSchema(ProofJobDtoSchema)
+    });
+  }
+
+  public submitStripeRevenueProof(input: SubmitStripeRevenueProofRequest) {
+    return this.request("/api/payment-proofs/stripe/revenue-threshold/submit", {
+      method: "POST",
+      body: SubmitStripeRevenueProofRequestSchema.parse(input),
+      schema: UnknownSuccessSchema
     });
   }
 

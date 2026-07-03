@@ -46,6 +46,10 @@ export const TrancheDtoSchema = z.object({
   milestonePolicyId: NonEmptyStringSchema,
   amount: AmountSchema,
   releaseToWallet: StellarAddressSchema,
+  mrrThresholdCents: AmountSchema.nullable(),
+  mrrCurrency: z.string().regex(/^[a-z]{3}$/).nullable(),
+  mrrPeriodStart: TimestampSchema.nullable(),
+  mrrPeriodEnd: TimestampSchema.nullable(),
   status: z.enum(TRANCHE_STATUSES),
   releasedAt: TimestampSchema.nullable(),
   txHash: TransactionHashSchema.nullable()
@@ -190,8 +194,13 @@ export const StartupPoolApplicationDtoSchema = z.object({
   founderWallet: StellarAddressSchema,
   startupProfileId: UuidSchema,
   investmentPoolId: UuidSchema,
+  programId: UuidSchema.nullable(),
   note: NonEmptyStringSchema,
   status: z.enum(POOL_APPLICATION_STATUSES),
+  startupProfile: StartupProfileDtoSchema.optional(),
+  investmentPool: InvestmentPoolDtoSchema.optional(),
+  program: ProgramDtoSchema.nullable().optional(),
+  tranches: z.array(TrancheDtoSchema).optional(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema
 });
@@ -222,6 +231,12 @@ export const GenerateStripeRevenueProofRequestSchema = z.object({
   milestoneId: NonEmptyStringSchema
 });
 
+export const SubmitStripeRevenueProofRequestSchema = z.object({
+  proofJobId: UuidSchema,
+  programId: UuidSchema,
+  milestoneKey: NonEmptyStringSchema
+});
+
 export const ContractEventDtoSchema = z.object({
   id: UuidSchema,
   contractId: NonEmptyStringSchema,
@@ -245,7 +260,11 @@ export const CreateProgramRequestSchema = z.object({
         milestoneKey: NonEmptyStringSchema,
         milestonePolicyId: NonEmptyStringSchema,
         amount: AmountSchema,
-        releaseToWallet: StellarAddressSchema
+        releaseToWallet: StellarAddressSchema,
+        mrrThresholdCents: AmountSchema.optional(),
+        mrrCurrency: z.string().regex(/^[a-zA-Z]{3}$/).optional(),
+        mrrPeriodStart: z.string().min(1).optional(),
+        mrrPeriodEnd: z.string().min(1).optional()
       })
     )
     .min(1)
@@ -282,6 +301,26 @@ export const CreateInvestmentPoolRequestSchema = z.object({
 export const ApplyToInvestmentPoolRequestSchema = z.object({
   startupProfileId: UuidSchema,
   note: NonEmptyStringSchema
+});
+
+export const ApproveStartupPoolApplicationRequestSchema = z.object({
+  approvedAmount: AmountSchema,
+  assetContract: NonEmptyStringSchema.default("USDC"),
+  eligibilityPolicyId: NonEmptyStringSchema.default("marketplace-eligibility"),
+  tranches: z
+    .array(
+      z.object({
+        milestoneKey: NonEmptyStringSchema,
+        milestonePolicyId: NonEmptyStringSchema.default("stripe-mrr-policy"),
+        amount: AmountSchema,
+        releaseToWallet: StellarAddressSchema,
+        mrrThresholdCents: AmountSchema,
+        mrrCurrency: z.string().regex(/^[a-zA-Z]{3}$/),
+        mrrPeriodStart: z.string().min(1),
+        mrrPeriodEnd: z.string().min(1)
+      })
+    )
+    .min(1)
 });
 
 export const CreateInvestmentCommitmentRequestSchema = z.object({
@@ -424,6 +463,9 @@ export type CreateStripeRevenueSnapshotRequest = z.infer<
 export type GenerateStripeRevenueProofRequest = z.infer<
   typeof GenerateStripeRevenueProofRequestSchema
 >;
+export type SubmitStripeRevenueProofRequest = z.infer<
+  typeof SubmitStripeRevenueProofRequestSchema
+>;
 export type ContractEventDto = z.infer<typeof ContractEventDtoSchema>;
 export type CreateProgramRequest = z.infer<typeof CreateProgramRequestSchema>;
 export type FundProgramRequest = z.infer<typeof FundProgramRequestSchema>;
@@ -435,6 +477,9 @@ export type CreateInvestmentPoolRequest = z.infer<
 >;
 export type ApplyToInvestmentPoolRequest = z.infer<
   typeof ApplyToInvestmentPoolRequestSchema
+>;
+export type ApproveStartupPoolApplicationRequest = z.infer<
+  typeof ApproveStartupPoolApplicationRequestSchema
 >;
 export type CreateInvestmentCommitmentRequest = z.infer<
   typeof CreateInvestmentCommitmentRequestSchema

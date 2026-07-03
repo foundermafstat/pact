@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
   ApplyToInvestmentPoolRequestSchema,
+  ApproveStartupPoolApplicationRequestSchema,
   CreateInvestmentCommitmentRequestSchema,
   CreateInvestmentPoolRequestSchema,
   CreateStartupProfileRequestSchema
@@ -105,6 +106,49 @@ export const registerMarketplaceRoutes = async (
       data: await marketplaceService.listFounderPoolApplications(session.user.wallet)
     };
   });
+
+  app.get("/api/investment-pool-applications/incoming", async (request) => {
+    const session = await requireRole(request, ["Investor", "Sponsor", "Admin"]);
+
+    return {
+      data: await marketplaceService.listInvestorPoolApplications(
+        session.user.wallet,
+        session.user.roles.includes("Admin")
+      )
+    };
+  });
+
+  app.post<{ Params: { applicationId: string } }>(
+    "/api/investment-pool-applications/:applicationId/approve",
+    async (request) => {
+      const session = await requireRole(request, ["Investor", "Sponsor", "Admin"]);
+      const body = ApproveStartupPoolApplicationRequestSchema.parse(request.body);
+
+      return {
+        data: await marketplaceService.approvePoolApplication(
+          session.user.wallet,
+          request.params.applicationId,
+          body,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
+
+  app.post<{ Params: { applicationId: string } }>(
+    "/api/investment-pool-applications/:applicationId/reject",
+    async (request) => {
+      const session = await requireRole(request, ["Investor", "Sponsor", "Admin"]);
+
+      return {
+        data: await marketplaceService.rejectPoolApplication(
+          session.user.wallet,
+          request.params.applicationId,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
 
   app.get("/api/investment-commitments/mine", async (request) => {
     const session = await requireRole(request, ["Investor", "Sponsor", "Admin"]);

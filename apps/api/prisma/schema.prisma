@@ -233,6 +233,7 @@ model StartupPoolApplication {
   founderWallet    String                @map("founder_wallet")
   startupProfileId String                @map("startup_profile_id") @db.Uuid
   investmentPoolId String                @map("investment_pool_id") @db.Uuid
+  programId        String?               @unique @map("program_id") @db.Uuid
   note             String
   status           PoolApplicationStatus @default(Submitted)
   createdAt        DateTime              @default(now()) @map("created_at")
@@ -241,6 +242,7 @@ model StartupPoolApplication {
   founder WalletAccount @relation(fields: [founderWallet], references: [wallet], onDelete: Cascade)
   startupProfile StartupProfile @relation(fields: [startupProfileId], references: [id], onDelete: Cascade)
   investmentPool InvestmentPool @relation(fields: [investmentPoolId], references: [id], onDelete: Cascade)
+  program Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
 
   @@unique([startupProfileId, investmentPoolId])
   @@index([founderWallet, createdAt])
@@ -285,6 +287,7 @@ model Program {
   stripeOAuthStates     StripeOAuthState[]
   stripeConnections     StripeConnection[]
   paymentRevenueSnapshots PaymentRevenueSnapshot[]
+  startupPoolApplications StartupPoolApplication[]
 
   @@map("programs")
 }
@@ -296,6 +299,10 @@ model Tranche {
   milestonePolicyId String        @map("milestone_policy_id")
   amount            Decimal
   releaseToWallet   String        @map("release_to_wallet")
+  mrrThresholdCents Decimal?      @map("mrr_threshold_cents")
+  mrrCurrency       String?       @map("mrr_currency")
+  mrrPeriodStart    DateTime?     @map("mrr_period_start")
+  mrrPeriodEnd      DateTime?     @map("mrr_period_end")
   status            TrancheStatus
   releasedAt        DateTime?     @map("released_at")
   txHash            String?       @map("tx_hash")
