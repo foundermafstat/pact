@@ -15,7 +15,7 @@ export default function IssuerAdminPage() {
         <div>
           <h1 className="text-2xl font-semibold">Issuer console</h1>
           <p className="text-sm text-muted-foreground">
-            Issue mock KYB credentials and publish roots.
+            Issue signed KYB credentials and publish durable roots.
           </p>
         </div>
         <Card>

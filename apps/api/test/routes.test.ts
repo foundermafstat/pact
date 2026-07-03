@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApiServer } from "../src/server";
+import { authHeaders } from "./auth-test-utils";
 
 const testConfig = {
   nodeEnv: "test",
@@ -15,6 +16,7 @@ const testConfig = {
 describe("API route registry", () => {
   it("registers all proof route groups", async () => {
     const app = await buildApiServer(testConfig);
+    const headers = await authHeaders("GPROJECT", "Admin");
 
     const checks = [
       ["POST", "/api/proofs/eligibility/generate", 400],
@@ -24,7 +26,7 @@ describe("API route registry", () => {
     ] as const;
 
     for (const [method, url, expectedStatus] of checks) {
-      const response = await app.inject({ method, url });
+      const response = await app.inject({ method, url, headers });
       expect(response.statusCode, `${method} ${url}`).toBe(expectedStatus);
     }
 
@@ -33,9 +35,11 @@ describe("API route registry", () => {
 
   it("returns typed validation error for proof submit", async () => {
     const app = await buildApiServer(testConfig);
+    const headers = await authHeaders("GPROJECT", "Admin");
     const response = await app.inject({
       method: "POST",
-      url: "/api/proofs/milestone/submit"
+      url: "/api/proofs/milestone/submit",
+      headers
     });
 
     await app.close();

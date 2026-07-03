@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApiServer } from "../src/server";
+import { authHeaders } from "./auth-test-utils";
 
 const testConfig = {
   nodeEnv: "test",
@@ -17,10 +18,12 @@ const policyId = "11111111-1111-4111-8111-111111111111";
 describe("Issuer root APIs", () => {
   it("builds a pending credential root from active mock credentials", async () => {
     const app = await buildApiServer(testConfig);
+    const headers = await authHeaders("GISSUER", "Issuer");
 
     await app.inject({
       method: "POST",
       url: "/api/issuer/credentials/mock",
+      headers,
       payload: {
         wallet: "GPROJECT",
         isAccredited: true,
@@ -34,6 +37,7 @@ describe("Issuer root APIs", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/issuer/roots/build",
+      headers,
       payload: {
         policyId,
         rootType: "Credential"
@@ -53,10 +57,12 @@ describe("Issuer root APIs", () => {
 
   it("publishes a built credential root", async () => {
     const app = await buildApiServer(testConfig);
+    const headers = await authHeaders("GISSUER", "Issuer");
 
     await app.inject({
       method: "POST",
       url: "/api/issuer/credentials/mock",
+      headers,
       payload: {
         wallet: "GPROJECT",
         isAccredited: true,
@@ -70,6 +76,7 @@ describe("Issuer root APIs", () => {
     const buildResponse = await app.inject({
       method: "POST",
       url: "/api/issuer/roots/build",
+      headers,
       payload: {
         policyId,
         rootType: "Credential"
@@ -79,6 +86,7 @@ describe("Issuer root APIs", () => {
     const publishResponse = await app.inject({
       method: "POST",
       url: "/api/issuer/roots/publish",
+      headers,
       payload: {
         rootId: buildResponse.json().data.id
       }
@@ -93,10 +101,12 @@ describe("Issuer root APIs", () => {
 
   it("rotates credential root after revocation", async () => {
     const app = await buildApiServer(testConfig);
+    const headers = await authHeaders("GISSUER", "Issuer");
 
     const credentialOne = await app.inject({
       method: "POST",
       url: "/api/issuer/credentials/mock",
+      headers,
       payload: {
         wallet: "GPROJECT1",
         isAccredited: true,
@@ -109,6 +119,7 @@ describe("Issuer root APIs", () => {
     await app.inject({
       method: "POST",
       url: "/api/issuer/credentials/mock",
+      headers,
       payload: {
         wallet: "GPROJECT2",
         isAccredited: false,
@@ -122,6 +133,7 @@ describe("Issuer root APIs", () => {
     const firstRoot = await app.inject({
       method: "POST",
       url: "/api/issuer/roots/build",
+      headers,
       payload: {
         policyId,
         rootType: "Credential"
@@ -130,13 +142,15 @@ describe("Issuer root APIs", () => {
 
     const revokeResponse = await app.inject({
       method: "POST",
-      url: `/api/issuer/credentials/${credentialOne.json().data.credential.id}/revoke`
+      url: `/api/issuer/credentials/${credentialOne.json().data.credential.id}/revoke`,
+      headers
     });
     expect(revokeResponse.json().data.status).toBe("Revoked");
 
     const rotatedRoot = await app.inject({
       method: "POST",
       url: "/api/issuer/roots/build",
+      headers,
       payload: {
         policyId,
         rootType: "Credential"

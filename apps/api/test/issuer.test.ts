@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApiServer } from "../src/server";
+import { authHeaders } from "./auth-test-utils";
 
 const testConfig = {
   nodeEnv: "test",
@@ -19,6 +20,7 @@ describe("Issuer APIs", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/issuer/credentials/mock",
+      headers: await authHeaders("GISSUER", "Issuer"),
       payload: {
         wallet: "GPROJECT",
         isAccredited: true,

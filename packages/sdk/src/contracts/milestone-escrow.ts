@@ -13,6 +13,7 @@ export class MilestoneEscrowClient {
 
   public createProgram(args: {
     programId: string;
+    sponsor: string;
     project: string;
     asset: string;
     totalAmount: string;
@@ -23,6 +24,7 @@ export class MilestoneEscrowClient {
       method: "create_program",
       args: [
         args.programId,
+        args.sponsor,
         args.project,
         args.asset,
         args.totalAmount,
@@ -83,6 +85,14 @@ export class MilestoneEscrowClient {
     });
   }
 
+  public setVerifierMode(mode: "Groth16Bn254" | "Mock") {
+    return this.transport.invoke<void>({
+      contractId: this.contractId,
+      method: "set_verifier_mode",
+      args: [mode]
+    });
+  }
+
   public submitProjectEligibility(args: {
     programId: string;
     proof: string;
@@ -90,6 +100,7 @@ export class MilestoneEscrowClient {
       account_binding: string;
       credential_root: string;
       nullifier: string;
+      proof_digest: string;
       policy_hash: string;
       policy_id: string;
     };
@@ -110,6 +121,7 @@ export class MilestoneEscrowClient {
       | {
           milestone_root: string;
           nullifier: string;
+          proof_digest: string;
           policy_id: string;
           recipient: string;
           tranche_amount: string;

@@ -1,5 +1,6 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
+import { Prisma, type MilestoneAttestation, type Root } from "@prisma/client";
 import type {
   CreateMilestoneEvidenceRequest,
   MilestonePrivateInput,
@@ -11,6 +12,14 @@ import type {
   TrancheDto
 } from "@pact/shared";
 import { buildMerkleTree } from "@pact/zk";
+
+import { loadStripeIntegrationConfig } from "../config";
+import { prisma } from "../db/client";
+import {
+  decryptJson,
+  encryptJson,
+  encryptionKeyFromConfig
+} from "./encryption-service";
 
 export type PrivateMilestonePackage = {
   attestationId: string;
@@ -34,7 +43,6 @@ export type MilestoneProofInputPackage = {
   privateInputs: MilestonePrivateInput;
 };
 
-const now = (): string => new Date().toISOString();
 const hex = (bytes = 32): `0x${string}` => `0x${randomBytes(bytes).toString("hex")}`;
 const sha256Hex = (value: string): `0x${string}` =>
   `0x${createHash("sha256").update(value).digest("hex")}`;
@@ -55,65 +63,128 @@ export const buildMilestoneCommitment = (
     })
   );
 
-export class AttestorService {
-  private readonly attestations = new Map<string, MilestoneAttestationDto>();
-  private readonly privatePackages = new Map<string, PrivateMilestonePackage>();
-  private readonly roots = new Map<string, RootDto>();
+const toAttestationDto = (attestation: MilestoneAttestation): MilestoneAttestationDto => ({
+  id: attestation.id,
+  programId: attestation.programId,
+  milestoneKey: attestation.milestoneKey,
+  milestoneRoot: attestation.milestoneRoot as `0x${string}` | null,
+  privateMetricsEncrypted: attestation.privateMetricsEncrypted,
+  publicPolicyHash: attestation.publicPolicyHash as `0x${string}`,
+  attestorId: attestation.attestorId,
+  status: attestation.status,
+  txHash: attestation.txHash,
+  createdAt: attestation.createdAt.toISOString()
+});
 
-  public reset(): void {
-    this.attestations.clear();
-    this.privatePackages.clear();
-    this.roots.clear();
+const toRootDto = (root: Root): RootDto => ({
+  id: root.id,
+  policyId: root.policyId,
+  root: root.root as `0x${string}`,
+  rootType: root.rootType,
+  epoch: root.epoch,
+  status: root.status,
+  txHash: root.txHash,
+  validFrom: root.validFrom.toISOString(),
+  validUntil: root.validUntil.toISOString(),
+  createdAt: root.createdAt.toISOString()
+});
+
+const encryptPrivatePackage = (value: PrivateMilestonePackage): string =>
+  encryptJson(value, encryptionKeyFromConfig(loadStripeIntegrationConfig()));
+
+const decryptPrivatePackage = (value: string): PrivateMilestonePackage =>
+  decryptJson<PrivateMilestonePackage>(
+    value,
+    encryptionKeyFromConfig(loadStripeIntegrationConfig())
+  );
+
+const ensureRootPolicy = async (policyId: string): Promise<void> => {
+  await prisma.policy.upsert({
+    where: { id: policyId },
+    update: {},
+    create: {
+      id: policyId,
+      policyKey: policyId,
+      policyHash: sha256Hex(`policy:${policyId}`),
+      policyType: "Milestone",
+      status: "Active",
+      rawPolicyJson: {
+        source: "attestor-root-build",
+        policyId
+      } as Prisma.InputJsonValue
+    }
+  });
+};
+
+export class AttestorService {
+  public async reset(): Promise<void> {
+    await prisma.milestoneAttestation.deleteMany();
+    await prisma.root.deleteMany({ where: { rootType: "MilestoneMetrics" } });
   }
 
-  public createMockEvidence(
+  public async createMockEvidence(
     input: CreateMilestoneEvidenceRequest
-  ): MilestoneAttestationDto {
+  ): Promise<MilestoneAttestationDto> {
     this.validateMilestoneMetrics(input);
     const metricSalt = generateMilestoneSalt();
     const metricCommitment = buildMilestoneCommitment(input, metricSalt);
 
     const attestorId =
-      process.env["MILESTONE_ATTESTOR_ID"] ?? "PACT_MILESTONE_MOCK_ATTESTOR";
+      process.env["MILESTONE_ATTESTOR_ID"] ?? "PACT_MILESTONE_SIGNED_ATTESTOR";
     const publicPolicyHash = sha256Hex(
       `${input.programId}:${input.milestoneKey}:${input.sourceRefs.join(",")}`
     );
-    const attestation: MilestoneAttestationDto = {
-      id: randomUUID(),
-      programId: input.programId,
-      milestoneKey: input.milestoneKey,
-      milestoneRoot: null,
-      privateMetricsEncrypted: metricCommitment,
-      publicPolicyHash,
-      attestorId,
-      status: "Pending",
-      txHash: null,
-      createdAt: now()
-    };
 
-    this.attestations.set(attestation.id, attestation);
-    this.privatePackages.set(attestation.id, {
-      attestationId: attestation.id,
-      programId: input.programId,
-      milestoneKey: input.milestoneKey,
-      metrics: input.metrics,
-      sourceRefs: input.sourceRefs,
-      metricSalt,
-      metricCommitment
+    const attestation = await prisma.$transaction(async (tx) => {
+      const created = await tx.milestoneAttestation.create({
+        data: {
+          programId: input.programId,
+          milestoneKey: input.milestoneKey,
+          milestoneRoot: null,
+          privateMetricsEncrypted: metricCommitment,
+          privatePackageEncrypted: "",
+          publicPolicyHash,
+          attestorId,
+          status: "Pending",
+          txHash: null
+        }
+      });
+      const privatePackage: PrivateMilestonePackage = {
+        attestationId: created.id,
+        programId: input.programId,
+        milestoneKey: input.milestoneKey,
+        metrics: input.metrics,
+        sourceRefs: input.sourceRefs,
+        metricSalt,
+        metricCommitment
+      };
+
+      return tx.milestoneAttestation.update({
+        where: { id: created.id },
+        data: {
+          privatePackageEncrypted: encryptPrivatePackage(privatePackage)
+        }
+      });
     });
-    return attestation;
+
+    return toAttestationDto(attestation);
   }
 
-  public buildMilestoneRoot(input: {
+  public async buildMilestoneRoot(input: {
     policyId: string;
     rootType: RootType;
-  }): MilestoneRootBuildResult {
+  }): Promise<MilestoneRootBuildResult> {
     if (input.rootType !== "MilestoneMetrics") {
       throw new Error("Milestone root builder requires MilestoneMetrics root type");
     }
 
-    const pendingPackages = [...this.privatePackages.values()]
-      .filter((item) => this.attestations.get(item.attestationId)?.status === "Pending")
+    const pendingAttestations = await prisma.milestoneAttestation.findMany({
+      where: { status: "Pending" },
+      orderBy: { privateMetricsEncrypted: "asc" }
+    });
+    const pendingPackages = pendingAttestations
+      .filter((item) => item.privatePackageEncrypted)
+      .map((item) => decryptPrivatePackage(item.privatePackageEncrypted ?? ""))
       .sort((left, right) => left.metricCommitment.localeCompare(right.metricCommitment));
 
     if (pendingPackages.length === 0) {
@@ -122,79 +193,98 @@ export class AttestorService {
 
     const commitments = pendingPackages.map((item) => item.metricCommitment);
     const tree = buildMerkleTree(commitments);
-    const createdAt = now();
-    const root: RootDto = {
-      id: randomUUID(),
-      policyId: input.policyId,
-      root: tree.root,
-      rootType: input.rootType,
-      epoch: Date.now(),
-      status: "Pending",
-      txHash: null,
-      validFrom: createdAt,
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      createdAt
-    };
+    const createdAt = new Date();
+    await ensureRootPolicy(input.policyId);
 
-    this.roots.set(root.id, root);
-    for (const item of pendingPackages) {
-      const attestation = this.attestations.get(item.attestationId);
-      if (attestation) {
-        this.attestations.set(attestation.id, {
-          ...attestation,
-          milestoneRoot: root.root,
+    const root = await prisma.$transaction(async (tx) => {
+      const createdRoot = await tx.root.create({
+        data: {
+          policyId: input.policyId,
+          root: tree.root,
+          rootType: input.rootType,
+          epoch: Math.floor(Date.now() / 1000),
+          status: "Pending",
+          txHash: null,
+          validFrom: createdAt,
+          validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        }
+      });
+      await tx.milestoneAttestation.updateMany({
+        where: {
+          id: {
+            in: pendingPackages.map((item) => item.attestationId)
+          }
+        },
+        data: {
+          milestoneRoot: createdRoot.root,
           status: "Validated"
-        });
-      }
-    }
+        }
+      });
+      return createdRoot;
+    });
 
-    return { root, commitments };
+    return { root: toRootDto(root), commitments };
   }
 
-  public publishMilestoneRoot(rootId: string): RootDto | undefined {
-    const root = this.roots.get(rootId);
+  public async publishMilestoneRoot(rootId: string): Promise<RootDto | undefined> {
+    const root = await prisma.root.findUnique({ where: { id: rootId } });
     if (!root) {
       return undefined;
     }
 
-    const publishedRoot = {
-      ...root,
-      status: "Active" as const,
-      txHash: sha256Hex(`milestone-root-publish:${root.id}:${root.root}`)
-    };
+    const publishedRoot = await prisma.$transaction(async (tx) => {
+      const updatedRoot = await tx.root.update({
+        where: { id: root.id },
+        data: {
+          status: "Active",
+          txHash: sha256Hex(`milestone-root-publish:${root.id}:${root.root}`)
+        }
+      });
+      await tx.milestoneAttestation.updateMany({
+        where: { milestoneRoot: root.root, status: "Validated" },
+        data: { status: "Published" }
+      });
+      return updatedRoot;
+    });
 
-    this.roots.set(root.id, publishedRoot);
-    return publishedRoot;
+    return toRootDto(publishedRoot);
   }
 
-  public buildMilestoneProofInput(input: {
+  public async buildMilestoneProofInput(input: {
     program: ProgramDto;
     tranche: TrancheDto;
-  }): MilestoneProofInputPackage {
-    const attestation = [...this.attestations.values()].find(
-      (item) =>
-        item.programId === input.program.id &&
-        item.milestoneKey === input.tranche.milestoneKey &&
-        item.status === "Validated" &&
-        item.milestoneRoot !== null
-    );
+  }): Promise<MilestoneProofInputPackage> {
+    const attestation = await prisma.milestoneAttestation.findFirst({
+      where: {
+        programId: input.program.id,
+        milestoneKey: input.tranche.milestoneKey,
+        status: { in: ["Validated", "Published"] },
+        milestoneRoot: { not: null }
+      },
+      orderBy: { createdAt: "desc" }
+    });
 
     if (!attestation || !attestation.milestoneRoot) {
       throw new Error("Validated milestone attestation was not found");
     }
 
-    const activeRoot = [...this.roots.values()].find(
-      (item) => item.root === attestation.milestoneRoot && item.status === "Active"
-    );
+    const activeRoot = await prisma.root.findFirst({
+      where: {
+        root: attestation.milestoneRoot,
+        status: "Active"
+      }
+    });
     if (!activeRoot) {
       throw new Error("Active milestone root was not found");
     }
 
-    const rootPackages = [...this.privatePackages.values()]
-      .filter((item) => {
-        const packageAttestation = this.attestations.get(item.attestationId);
-        return packageAttestation?.milestoneRoot === activeRoot.root;
-      })
+    const rootAttestations = await prisma.milestoneAttestation.findMany({
+      where: { milestoneRoot: activeRoot.root },
+      orderBy: { privateMetricsEncrypted: "asc" }
+    });
+    const rootPackages = rootAttestations
+      .filter((item) => item.privatePackageEncrypted)
+      .map((item) => decryptPrivatePackage(item.privatePackageEncrypted ?? ""))
       .sort((left, right) => left.metricCommitment.localeCompare(right.metricCommitment));
     const packageIndex = rootPackages.findIndex(
       (item) => item.attestationId === attestation.id
@@ -214,8 +304,8 @@ export class AttestorService {
       attestationId: attestation.id,
       metricCommitment: privatePackage.metricCommitment,
       publicInputs: {
-        policyHash: attestation.publicPolicyHash,
-        milestoneRoot: activeRoot.root,
+        policyHash: attestation.publicPolicyHash as `0x${string}`,
+        milestoneRoot: activeRoot.root as `0x${string}`,
         nullifier,
         programId: input.program.id,
         milestoneId: input.tranche.milestoneKey,

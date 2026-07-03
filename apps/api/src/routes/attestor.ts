@@ -16,7 +16,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
     const body = CreateMilestoneEvidenceRequestSchema.parse(request.body);
     try {
       return {
-        data: attestorService.createMockEvidence(body)
+        data: await attestorService.createMockEvidence(body)
       };
     } catch (error) {
       throw new ApiError(
@@ -31,7 +31,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
     const body = RootBuildRequestSchema.parse(request.body);
     try {
       return {
-        data: attestorService.buildMilestoneRoot(body)
+        data: await attestorService.buildMilestoneRoot(body)
       };
     } catch (error) {
       throw new ApiError(
@@ -44,7 +44,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
   app.post("/api/attestor/milestone-root/publish", async (request) => {
     await requireRole(request, ["Attestor", "Admin"]);
     const body = RootPublishRequestSchema.parse(request.body);
-    const root = attestorService.publishMilestoneRoot(body.rootId);
+    const root = await attestorService.publishMilestoneRoot(body.rootId);
     if (!root) {
       throw new ApiError(404, "root_not_found", "Root was not found");
     }
@@ -70,7 +70,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
 
       try {
         return {
-          data: attestorService.buildMilestoneProofInput({
+          data: await attestorService.buildMilestoneProofInput({
             program: record.program,
             tranche
           })

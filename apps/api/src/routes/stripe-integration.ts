@@ -9,6 +9,7 @@ import {
 import { z } from "zod";
 
 import { loadStripeIntegrationConfig } from "../config";
+import { prisma } from "../db/client";
 import { ApiError } from "../errors";
 import {
   escrowContractService,
@@ -16,6 +17,7 @@ import {
 } from "../services/escrow-contract-service";
 import { proofJobService } from "../services/proof-job-service";
 import { programService } from "../services/program-service";
+import { generatePaymentRevenueProof } from "../services/local-proof-service";
 import { stripeConnectorService } from "../services/stripe-connector-service";
 import { stripeOAuthService } from "../services/stripe-oauth-service";
 import { stripeRevenueSnapshotService } from "../services/stripe-revenue-snapshot-service";
@@ -43,8 +45,6 @@ const StripeWebhookEventSchema = z.object({
   livemode: z.boolean().optional(),
   account: z.string().optional()
 });
-
-const processedWebhookEvents = new Set<string>();
 
 const sha256Hex = (value: string): `0x${string}` =>
   `0x${createHash("sha256").update(value).digest("hex")}`;
@@ -146,9 +146,15 @@ export const registerStripeIntegrationRoutes = async (
 
     const config = loadStripeIntegrationConfig();
     let start;
-    assertConfigured(() => {
-      start = stripeOAuthService.createOAuthStart(config, parsed.data.programId);
-    });
+    try {
+      start = await stripeOAuthService.createOAuthStart(config, parsed.data.programId);
+    } catch (error) {
+      throw new ApiError(
+        400,
+        "stripe_not_configured",
+        error instanceof Error ? error.message : "Stripe integration is not configured"
+      );
+    }
 
     return { data: start };
   });
@@ -177,7 +183,7 @@ export const registerStripeIntegrationRoutes = async (
     const config = loadStripeIntegrationConfig();
     let stateRecord;
     try {
-      stateRecord = stripeOAuthService.consumeOAuthState(config, parsed.data.state);
+      stateRecord = await stripeOAuthService.consumeOAuthState(config, parsed.data.state);
     } catch (error) {
       throw new ApiError(
         400,
@@ -214,7 +220,7 @@ export const registerStripeIntegrationRoutes = async (
       );
     }
 
-    const connection = stripeOAuthService.storeConnection({
+    const connection = await stripeOAuthService.storeConnection({
       programId: stateRecord.programId,
       stripeAccountId: tokenResponse.stripeAccountId,
       livemode: tokenResponse.livemode,
@@ -222,7 +228,7 @@ export const registerStripeIntegrationRoutes = async (
     });
 
     if (config.testMode && connection.livemode) {
-      stripeOAuthService.disconnect(connection.programId);
+      await stripeOAuthService.disconnect(connection.programId);
       throw new ApiError(
         400,
         "stripe_livemode_rejected",
@@ -230,7 +236,7 @@ export const registerStripeIntegrationRoutes = async (
       );
     }
 
-    return { data: stripeOAuthService.getStatus(connection.programId) };
+    return { data: await stripeOAuthService.getStatus(connection.programId) };
   });
 
   app.get("/api/integrations/stripe/status", async (request) => {
@@ -251,7 +257,7 @@ export const registerStripeIntegrationRoutes = async (
     }
     await requireProgramAccess(request, record.program, "startup");
 
-    return { data: stripeOAuthService.getStatus(parsed.data.programId) };
+    return { data: await stripeOAuthService.getStatus(parsed.data.programId) };
   });
 
   app.post("/api/integrations/stripe/disconnect", async (request) => {
@@ -273,7 +279,7 @@ export const registerStripeIntegrationRoutes = async (
     await requireProgramAccess(request, record.program, "startup");
 
     const config = loadStripeIntegrationConfig();
-    const connection = stripeOAuthService.getConnection(parsed.data.programId);
+    const connection = await stripeOAuthService.getConnection(parsed.data.programId);
     if (connection) {
       try {
         await stripeConnectorService.deauthorize(config, connection);
@@ -281,9 +287,9 @@ export const registerStripeIntegrationRoutes = async (
         // Local demo state still needs to be cleared if Stripe deauthorize is unavailable.
       }
     }
-    stripeOAuthService.disconnect(parsed.data.programId);
+    await stripeOAuthService.disconnect(parsed.data.programId);
 
-    return { data: stripeOAuthService.getStatus(parsed.data.programId) };
+    return { data: await stripeOAuthService.getStatus(parsed.data.programId) };
   });
 
   app.post("/api/payment-proofs/stripe/revenue-threshold/snapshot", async (request) => {
@@ -304,7 +310,7 @@ export const registerStripeIntegrationRoutes = async (
     }
     await requireProgramAccess(request, record.program, "startup");
 
-    const connection = stripeOAuthService.getConnection(parsed.data.programId);
+    const connection = await stripeOAuthService.getConnection(parsed.data.programId);
     if (!connection) {
       throw new ApiError(
         400,
@@ -355,7 +361,7 @@ export const registerStripeIntegrationRoutes = async (
     }
 
     try {
-      const snapshot = stripeRevenueSnapshotService.createSnapshot({
+      const snapshot = await stripeRevenueSnapshotService.createSnapshot({
         config,
         programId: parsed.data.programId,
         connection,
@@ -393,7 +399,7 @@ export const registerStripeIntegrationRoutes = async (
       );
     }
 
-    const snapshot = stripeRevenueSnapshotService.getSnapshot(parsed.data.snapshotId);
+    const snapshot = await stripeRevenueSnapshotService.getSnapshot(parsed.data.snapshotId);
     if (!snapshot) {
       throw new ApiError(404, "stripe_snapshot_not_found", "Stripe snapshot was not found");
     }
@@ -405,7 +411,7 @@ export const registerStripeIntegrationRoutes = async (
 
     let proofInput;
     try {
-      proofInput = stripeRevenueSnapshotService.buildProofInput(
+      proofInput = await stripeRevenueSnapshotService.buildProofInput(
         loadStripeIntegrationConfig(),
         parsed.data.snapshotId,
         parsed.data.milestoneId
@@ -421,7 +427,7 @@ export const registerStripeIntegrationRoutes = async (
       throw new ApiError(404, "stripe_snapshot_not_found", "Stripe snapshot was not found");
     }
 
-    const queuedJob = proofJobService.createJob({
+    const queuedJob = await proofJobService.createJob({
       proofType: "PaymentRevenueThreshold",
       requestJson: {
         snapshotId: parsed.data.snapshotId,
@@ -431,19 +437,30 @@ export const registerStripeIntegrationRoutes = async (
       },
       publicInputsJson: proofInput.publicInput
     });
-    proofJobService.startJob(queuedJob.id);
-    const completedJob = proofJobService.completeJob(queuedJob.id, {
-      publicInputsJson: proofInput.publicInput,
-      proofJson: {
-        mode: "pact-attested-threshold",
-        proofSystem: "zk-compatible-placeholder",
-        accepted: proofInput.thresholdPassed,
-        verificationKeyHash: sha256Hex("payment-revenue-threshold-proof:v1"),
-        generatedAt: new Date().toISOString(),
-        trustModel:
-          "Stripe test API data is fetched by the Pact connector; ZK-compatible commitments hide raw revenue and source rows."
-      }
-    });
+    await proofJobService.startJob(queuedJob.id);
+    let completedJob;
+    try {
+      const generatedProof = await generatePaymentRevenueProof(proofInput);
+      completedJob = await proofJobService.completeJob(queuedJob.id, {
+        publicInputsJson: generatedProof.publicInputsJson,
+        proofJson: {
+          ...generatedProof.proofJson,
+          accepted: proofInput.thresholdPassed,
+          trustModel:
+            "Stripe test API data is fetched by the Pact connector; Groth16 proof is verified off-chain and bound on-chain by digest for the MVP."
+        }
+      });
+    } catch (error) {
+      await proofJobService.failJob(
+        queuedJob.id,
+        error instanceof Error ? error.message : "Stripe revenue proof generation failed"
+      );
+      throw new ApiError(
+        502,
+        "stripe_proof_generation_failed",
+        error instanceof Error ? error.message : "Stripe revenue proof generation failed"
+      );
+    }
 
     return { data: completedJob };
   });
@@ -452,7 +469,7 @@ export const registerStripeIntegrationRoutes = async (
     "/api/payment-proofs/stripe/revenue-threshold/:proofJobId",
     async (request) => {
       await requireRole(request, ["Project", "Admin"]);
-      const job = proofJobService.getJob(request.params.proofJobId);
+      const job = await proofJobService.getJob(request.params.proofJobId);
       if (!job || job.proofType !== "PaymentRevenueThreshold") {
         throw new ApiError(404, "proof_job_not_found", "Proof job was not found");
       }
@@ -480,7 +497,7 @@ export const registerStripeIntegrationRoutes = async (
       );
     }
 
-    const proofJob = proofJobService.getJob(parsed.data.proofJobId);
+    const proofJob = await proofJobService.getJob(parsed.data.proofJobId);
     if (!proofJob) {
       throw new ApiError(404, "proof_job_not_found", "Proof job was not found");
     }
@@ -547,12 +564,16 @@ export const registerStripeIntegrationRoutes = async (
         program: record.program,
         tranche,
         milestoneRoot: String(publicInputs["snapshotCommitment"]),
-        milestoneNullifier: String(publicInputs["nullifier"])
+        milestoneNullifier: String(publicInputs["nullifier"]),
+        proofDigest: String(
+          (proofJob.proofJson?.["verification"] as { proofDigest?: unknown } | undefined)
+            ?.proofDigest ?? proofJob.proofJson?.["proofDigest"] ?? ""
+        )
       });
     } catch (error) {
       if (error instanceof SmartContractNotConfiguredError) {
         throw new ApiError(
-          400,
+          503,
           "smart_contract_not_configured",
           "Smart contract release is not configured"
         );
@@ -623,15 +644,32 @@ export const registerStripeIntegrationRoutes = async (
       );
     }
 
-    const alreadyProcessed = processedWebhookEvents.has(parsed.data.id);
-    processedWebhookEvents.add(parsed.data.id);
+    const existing = await prisma.stripeWebhookEvent.findUnique({
+      where: { stripeEventId: parsed.data.id }
+    });
+    const alreadyProcessed = Boolean(existing);
+    const payloadHash = sha256Hex(request.body);
+    await prisma.stripeWebhookEvent.upsert({
+      where: { stripeEventId: parsed.data.id },
+      update: {
+        processedAt: existing?.processedAt ?? new Date()
+      },
+      create: {
+        stripeEventId: parsed.data.id,
+        stripeAccountId: parsed.data.account ?? null,
+        type: parsed.data.type,
+        livemode: parsed.data.livemode ?? false,
+        payloadHash,
+        processedAt: new Date()
+      }
+    });
 
     return {
       data: {
         id: parsed.data.id,
         type: parsed.data.type,
         alreadyProcessed,
-        payloadHash: sha256Hex(request.body)
+        payloadHash
       }
     };
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApiServer } from "../src/server";
+import { authHeaders } from "./auth-test-utils";
 
 const testConfig = {
   nodeEnv: "test",
@@ -32,10 +33,12 @@ const createProgramPayload = {
 describe("Program APIs", () => {
   it("creates, funds, activates, and audits a program", async () => {
     const app = await buildApiServer(testConfig);
+    const investorHeaders = await authHeaders("GSPONSOR", "Investor");
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/api/programs",
+      headers: investorHeaders,
       payload: createProgramPayload
     });
     const created = createResponse.json();
@@ -48,19 +51,22 @@ describe("Program APIs", () => {
     const fundResponse = await app.inject({
       method: "POST",
       url: `/api/programs/${programId}/fund`,
+      headers: investorHeaders,
       payload: { amount: "1000" }
     });
     expect(fundResponse.json().data.program.fundedAmount).toBe("1000");
 
     const activateResponse = await app.inject({
       method: "POST",
-      url: `/api/programs/${programId}/activate`
+      url: `/api/programs/${programId}/activate`,
+      headers: investorHeaders
     });
     expect(activateResponse.json().data.program.status).toBe("Active");
 
     const auditResponse = await app.inject({
       method: "GET",
-      url: `/api/programs/${programId}/audit`
+      url: `/api/programs/${programId}/audit`,
+      headers: investorHeaders
     });
     expect(auditResponse.json().data.timeline.map((item: { type: string }) => item.type)).toEqual([
       "ProgramCreated",

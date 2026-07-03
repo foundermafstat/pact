@@ -4,14 +4,14 @@ import { programService } from "../src/services/program-service";
 import { publicAuditService } from "../src/services/public-audit-service";
 
 describe("PublicAuditService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     programService.reset();
-    publicAuditService.reset();
+    await publicAuditService.reset();
   });
 
   it("projects public program audit timeline without private fields", async () => {
     const record = await programService.createProgram({
-      programKey: "PACT-DEMO-AUDIT",
+      programKey: `PACT-DEMO-AUDIT-${Date.now()}`,
       sponsorWallet: "GSPONSOR",
       projectWallet: "GPROJECT",
       assetContract: "USDC",
@@ -27,8 +27,7 @@ describe("PublicAuditService", () => {
       ]
     });
 
-    publicAuditService.recordContractEvent(record.program.id, {
-      id: "11111111-1111-4111-8111-111111111111",
+    await publicAuditService.recordContractEvent(record.program.id, {
       contractId: "escrow",
       eventType: "released",
       txHash: "tx-1",

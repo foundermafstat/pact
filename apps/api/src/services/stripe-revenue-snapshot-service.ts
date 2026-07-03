@@ -1,11 +1,9 @@
 import {
-  createCipheriv,
-  createDecipheriv,
   createHash,
-  randomBytes,
-  randomUUID
+  randomBytes
 } from "node:crypto";
 
+import type { PaymentRevenueSnapshot } from "@prisma/client";
 import {
   canonicalizeJson,
   type PaymentRevenuePrivateInput,
@@ -14,6 +12,12 @@ import {
 } from "@pact/shared";
 
 import type { StripeIntegrationConfig } from "../config";
+import { prisma } from "../db/client";
+import {
+  decryptJson,
+  encryptJson,
+  encryptionKeyFromConfig
+} from "./encryption-service";
 import type {
   StripeBalanceTransactionRecord,
   StripeChargeRecord,
@@ -47,10 +51,6 @@ type EncryptedPrivateSnapshot = {
   sourceRefSaltsEncrypted: string;
 };
 
-type SnapshotRecord = StripeRevenueSnapshotDto & {
-  privateEncrypted: EncryptedPrivateSnapshot;
-};
-
 export type NormalizedRevenueSnapshot = {
   grossPaidCents: string;
   refundCents: string;
@@ -78,8 +78,6 @@ export type NormalizedRevenueSnapshot = {
   }>;
 };
 
-const now = (): string => new Date().toISOString();
-
 const sha256Hex = (value: string): `0x${string}` =>
   `0x${createHash("sha256").update(value).digest("hex")}`;
 
@@ -89,63 +87,8 @@ const assertCurrency = (actual: string, expected: string): void => {
   }
 };
 
-const encryptionKeyFromConfig = (config: StripeIntegrationConfig): Buffer => {
-  const value = config.paymentProofEncryptionKey;
-  if (!value) {
-    throw new Error("PAYMENT_PROOF_ENCRYPTION_KEY is required for snapshots");
-  }
-
-  const base64 = Buffer.from(value, "base64");
-  if (base64.length === 32) {
-    return base64;
-  }
-
-  if (/^[0-9a-f]{64}$/i.test(value)) {
-    return Buffer.from(value, "hex");
-  }
-
-  const utf8 = Buffer.from(value, "utf8");
-  if (utf8.length === 32) {
-    return utf8;
-  }
-
-  throw new Error("PAYMENT_PROOF_ENCRYPTION_KEY must decode to 32 bytes");
-};
-
-const encryptJson = (value: unknown, key: Buffer): string => {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(JSON.stringify(value), "utf8"),
-    cipher.final()
-  ]);
-  const tag = cipher.getAuthTag();
-  return [
-    "v1",
-    iv.toString("base64url"),
-    tag.toString("base64url"),
-    encrypted.toString("base64url")
-  ].join(":");
-};
-
-const decryptJson = <T>(value: string, key: Buffer): T => {
-  const [version, iv, tag, encrypted] = value.split(":");
-  if (version !== "v1" || !iv || !tag || !encrypted) {
-    throw new Error("Unsupported encrypted snapshot value");
-  }
-
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    key,
-    Buffer.from(iv, "base64url")
-  );
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(encrypted, "base64url")),
-    decipher.final()
-  ]);
-  return JSON.parse(decrypted.toString("utf8")) as T;
-};
+const amountToString = (value: { toFixed: (digits?: number) => string }): string =>
+  value.toFixed(0);
 
 export const normalizeStripeRevenue = (
   sourceData: StripeRevenueSourceData,
@@ -239,13 +182,11 @@ export const normalizeStripeRevenue = (
 };
 
 export class StripeRevenueSnapshotService {
-  private readonly snapshots = new Map<string, SnapshotRecord>();
-
-  public reset(): void {
-    this.snapshots.clear();
+  public async reset(): Promise<void> {
+    await prisma.paymentRevenueSnapshot.deleteMany();
   }
 
-  public createSnapshot(input: CreateSnapshotInput): StripeRevenueSnapshotDto {
+  public async createSnapshot(input: CreateSnapshotInput): Promise<StripeRevenueSnapshotDto> {
     const key = encryptionKeyFromConfig(input.config);
     const normalized = normalizeStripeRevenue(input.sourceData, input.currency);
     const snapshotSalt = randomBytes(16).toString("hex");
@@ -277,80 +218,91 @@ export class StripeRevenueSnapshotService {
         sourceRefsCommitment
       })}:${snapshotSalt}`
     );
-    const generatedAt = now();
-    const id = randomUUID();
     const thresholdPassed =
       BigInt(normalized.netRevenueCents) >= BigInt(input.thresholdCents);
 
-    const record: SnapshotRecord = {
-      id,
-      programId: input.programId,
-      status: "Generated",
-      source: "stripe",
-      mode: "test",
-      connectedAccountHash,
-      periodStart: input.periodStart,
-      periodEnd: input.periodEnd,
-      currency: input.currency,
-      thresholdCents: input.thresholdCents,
-      policyHash: input.policyHash,
-      snapshotCommitment,
-      sourceRefsCommitment,
-      generatedAt,
-      thresholdPassed,
-      privateEncrypted: {
-        connectedAccountIdEncrypted: encryptJson(input.connection.stripeAccountId, key),
-        grossPaidCentsEncrypted: encryptJson(normalized.grossPaidCents, key),
-        refundCentsEncrypted: encryptJson(normalized.refundCents, key),
-        feeCentsEncrypted: encryptJson(normalized.feeCents, key),
-        netRevenueCentsEncrypted: encryptJson(normalized.netRevenueCents, key),
-        successfulChargeCountEncrypted: encryptJson(
-          normalized.successfulChargeCount,
-          key
-        ),
-        rawSourceRefsEncrypted: encryptJson(sourceRefs, key),
-        connectorSecretEncrypted: encryptJson(`0x${connectorSecret}`, key),
-        snapshotSaltEncrypted: encryptJson(`0x${snapshotSalt}`, key),
-        sourceRefSaltsEncrypted: encryptJson([`0x${snapshotSalt}`], key)
-      }
+    const privateEncrypted: EncryptedPrivateSnapshot = {
+      connectedAccountIdEncrypted: encryptJson(input.connection.stripeAccountId, key),
+      grossPaidCentsEncrypted: encryptJson(normalized.grossPaidCents, key),
+      refundCentsEncrypted: encryptJson(normalized.refundCents, key),
+      feeCentsEncrypted: encryptJson(normalized.feeCents, key),
+      netRevenueCentsEncrypted: encryptJson(normalized.netRevenueCents, key),
+      successfulChargeCountEncrypted: encryptJson(
+        normalized.successfulChargeCount,
+        key
+      ),
+      rawSourceRefsEncrypted: encryptJson(sourceRefs, key),
+      connectorSecretEncrypted: encryptJson(`0x${connectorSecret}`, key),
+      snapshotSaltEncrypted: encryptJson(`0x${snapshotSalt}`, key),
+      sourceRefSaltsEncrypted: encryptJson([`0x${snapshotSalt}`], key)
     };
-    this.snapshots.set(id, record);
+    const record = await prisma.paymentRevenueSnapshot.create({
+      data: {
+        programId: input.programId,
+        stripeConnectionId: input.connection.id,
+        connectedAccountHash,
+        periodStart: new Date(input.periodStart),
+        periodEnd: new Date(input.periodEnd),
+        currency: input.currency,
+        thresholdCents: input.thresholdCents,
+        policyHash: input.policyHash,
+        connectedAccountIdEncrypted: privateEncrypted.connectedAccountIdEncrypted,
+        grossPaidCentsEncrypted: privateEncrypted.grossPaidCentsEncrypted,
+        refundCentsEncrypted: privateEncrypted.refundCentsEncrypted,
+        feeCentsEncrypted: privateEncrypted.feeCentsEncrypted,
+        netRevenueCentsEncrypted: privateEncrypted.netRevenueCentsEncrypted,
+        successfulChargeCountEncrypted: privateEncrypted.successfulChargeCountEncrypted,
+        snapshotCommitment,
+        sourceRefsCommitment,
+        rawSourceRefsEncrypted: privateEncrypted.rawSourceRefsEncrypted,
+        connectorSecretEncrypted: privateEncrypted.connectorSecretEncrypted,
+        snapshotSaltEncrypted: privateEncrypted.snapshotSaltEncrypted,
+        sourceRefSaltsEncrypted: privateEncrypted.sourceRefSaltsEncrypted,
+        thresholdPassed,
+        status: "Generated"
+      }
+    });
 
     return this.toDto(record);
   }
 
-  public getSnapshot(snapshotId: string): StripeRevenueSnapshotDto | undefined {
-    const record = this.snapshots.get(snapshotId);
+  public async getSnapshot(snapshotId: string): Promise<StripeRevenueSnapshotDto | undefined> {
+    const record = await prisma.paymentRevenueSnapshot.findUnique({
+      where: { id: snapshotId }
+    });
     return record ? this.toDto(record) : undefined;
   }
 
-  public buildProofInput(
+  public async buildProofInput(
     config: StripeIntegrationConfig,
     snapshotId: string,
     milestoneId: string
-  ):
+  ): Promise<
     | {
         publicInput: PaymentRevenuePublicInput;
         privateInput: PaymentRevenuePrivateInput;
         thresholdPassed: boolean;
       }
-    | undefined {
-    const record = this.snapshots.get(snapshotId);
+    | undefined
+  > {
+    const record = await prisma.paymentRevenueSnapshot.findUnique({
+      where: { id: snapshotId }
+    });
     if (!record) {
       return undefined;
     }
 
     const key = encryptionKeyFromConfig(config);
-    const periodStartEpoch = Math.floor(new Date(record.periodStart).getTime() / 1000);
-    const periodEndEpoch = Math.floor(new Date(record.periodEnd).getTime() / 1000);
+    const periodStartEpoch = Math.floor(record.periodStart.getTime() / 1000);
+    const periodEndEpoch = Math.floor(record.periodEnd.getTime() / 1000);
     const publicInput: PaymentRevenuePublicInput = {
-      policyHash: record.policyHash,
-      snapshotCommitment: record.snapshotCommitment,
-      sourceRefsCommitment: record.sourceRefsCommitment,
-      connectedAccountHash: record.connectedAccountHash,
+      policyHash: record.policyHash as `0x${string}`,
+      snapshotCommitment: record.snapshotCommitment as `0x${string}`,
+      sourceRefsCommitment: record.sourceRefsCommitment as `0x${string}`,
+      connectedAccountHash: record.connectedAccountHash as `0x${string}`,
       programId: record.programId,
       milestoneId,
-      thresholdCents: record.thresholdCents,
+      thresholdCents: amountToString(record.thresholdCents),
       currencyCode: record.currency,
       periodStartEpoch,
       periodEndEpoch,
@@ -361,32 +313,32 @@ export class StripeRevenueSnapshotService {
     };
     const privateInput: PaymentRevenuePrivateInput = {
       connectorSecret: decryptJson<string>(
-        record.privateEncrypted.connectorSecretEncrypted,
+        record.connectorSecretEncrypted,
         key
       ) as `0x${string}`,
       snapshotSalt: decryptJson<string>(
-        record.privateEncrypted.snapshotSaltEncrypted,
+        record.snapshotSaltEncrypted,
         key
       ) as `0x${string}`,
       netRevenueCents: decryptJson<string>(
-        record.privateEncrypted.netRevenueCentsEncrypted,
+        record.netRevenueCentsEncrypted,
         key
       ),
       grossPaidCents: decryptJson<string>(
-        record.privateEncrypted.grossPaidCentsEncrypted,
+        record.grossPaidCentsEncrypted,
         key
       ),
       refundCents: decryptJson<string>(
-        record.privateEncrypted.refundCentsEncrypted,
+        record.refundCentsEncrypted,
         key
       ),
-      feeCents: decryptJson<string>(record.privateEncrypted.feeCentsEncrypted, key),
+      feeCents: decryptJson<string>(record.feeCentsEncrypted, key),
       successfulChargeCount: decryptJson<number>(
-        record.privateEncrypted.successfulChargeCountEncrypted,
+        record.successfulChargeCountEncrypted,
         key
       ),
       sourceRefSalts: decryptJson<string[]>(
-        record.privateEncrypted.sourceRefSaltsEncrypted,
+        record.sourceRefSaltsEncrypted,
         key
       ) as `0x${string}`[]
     };
@@ -398,9 +350,24 @@ export class StripeRevenueSnapshotService {
     };
   }
 
-  private toDto(record: SnapshotRecord): StripeRevenueSnapshotDto {
-    const { privateEncrypted: _privateEncrypted, ...dto } = record;
-    return dto;
+  private toDto(record: PaymentRevenueSnapshot): StripeRevenueSnapshotDto {
+    return {
+      id: record.id,
+      programId: record.programId,
+      status: "Generated",
+      source: "stripe",
+      mode: "test",
+      connectedAccountHash: record.connectedAccountHash as `0x${string}`,
+      periodStart: record.periodStart.toISOString(),
+      periodEnd: record.periodEnd.toISOString(),
+      currency: record.currency,
+      thresholdCents: amountToString(record.thresholdCents),
+      policyHash: record.policyHash as `0x${string}`,
+      snapshotCommitment: record.snapshotCommitment as `0x${string}`,
+      sourceRefsCommitment: record.sourceRefsCommitment as `0x${string}`,
+      generatedAt: record.generatedAt.toISOString(),
+      thresholdPassed: record.thresholdPassed
+    };
   }
 }
 

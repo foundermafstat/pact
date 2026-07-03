@@ -288,6 +288,7 @@ model Program {
   stripeConnections     StripeConnection[]
   paymentRevenueSnapshots PaymentRevenueSnapshot[]
   startupPoolApplications StartupPoolApplication[]
+  contractEvents ContractEvent[]
 
   @@map("programs")
 }
@@ -353,6 +354,7 @@ model Credential {
   subjectCommitment String           @map("subject_commitment")
   issuerId          String           @map("issuer_id")
   credentialLeaf    String           @map("credential_leaf")
+  privatePackageEncrypted String?    @map("private_package_encrypted")
   status            CredentialStatus
   expiresAt         DateTime         @map("expires_at")
   createdAt         DateTime         @default(now()) @map("created_at")
@@ -367,6 +369,7 @@ model MilestoneAttestation {
   milestoneKey            String                     @map("milestone_key")
   milestoneRoot           String?                    @map("milestone_root")
   privateMetricsEncrypted String                     @map("private_metrics_encrypted")
+  privatePackageEncrypted String?                    @map("private_package_encrypted")
   publicPolicyHash        String                     @map("public_policy_hash")
   attestorId              String                     @map("attestor_id")
   status                  MilestoneAttestationStatus
@@ -399,6 +402,7 @@ model StripeConnection {
   programId         String    @map("program_id") @db.Uuid
   stripeAccountId   String    @map("stripe_account_id")
   stripeAccountHash String    @map("stripe_account_hash")
+  accountSalt       String    @default("") @map("account_salt")
   livemode          Boolean
   scope             String
   status            String
@@ -432,10 +436,13 @@ model PaymentRevenueSnapshot {
   id                             String   @id @default(uuid()) @db.Uuid
   programId                      String   @map("program_id") @db.Uuid
   stripeConnectionId             String   @map("stripe_connection_id") @db.Uuid
+  connectedAccountHash           String   @default("0x0000000000000000000000000000000000000000000000000000000000000000") @map("connected_account_hash")
   periodStart                    DateTime @map("period_start")
   periodEnd                      DateTime @map("period_end")
   currency                       String
   thresholdCents                 Decimal  @map("threshold_cents")
+  policyHash                     String   @default("0x0000000000000000000000000000000000000000000000000000000000000000") @map("policy_hash")
+  connectedAccountIdEncrypted    String   @default("") @map("connected_account_id_encrypted")
   grossPaidCentsEncrypted        String   @map("gross_paid_cents_encrypted")
   refundCentsEncrypted           String   @map("refund_cents_encrypted")
   feeCentsEncrypted              String   @map("fee_cents_encrypted")
@@ -444,6 +451,10 @@ model PaymentRevenueSnapshot {
   snapshotCommitment             String   @map("snapshot_commitment")
   sourceRefsCommitment           String   @map("source_refs_commitment")
   rawSourceRefsEncrypted         String   @map("raw_source_refs_encrypted")
+  connectorSecretEncrypted       String   @default("") @map("connector_secret_encrypted")
+  snapshotSaltEncrypted          String   @default("") @map("snapshot_salt_encrypted")
+  sourceRefSaltsEncrypted        String   @default("") @map("source_ref_salts_encrypted")
+  thresholdPassed                Boolean  @default(false) @map("threshold_passed")
   status                         String
   generatedAt                    DateTime @default(now()) @map("generated_at")
 
@@ -471,6 +482,7 @@ model StripeWebhookEvent {
 
 model ContractEvent {
   id         String   @id @default(uuid()) @db.Uuid
+  programId  String?  @map("program_id") @db.Uuid
   contractId String   @map("contract_id")
   eventType  String   @map("event_type")
   txHash     String   @map("tx_hash")
@@ -478,7 +490,10 @@ model ContractEvent {
   payload    Json
   createdAt  DateTime @default(now()) @map("created_at")
 
+  program Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+
   @@unique([txHash, eventType])
+  @@index([programId, createdAt])
   @@index([contractId, ledger])
   @@map("contract_events")
 }

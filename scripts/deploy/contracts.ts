@@ -83,9 +83,14 @@ const run = (command: string, commandArgs: string[]): string => {
   return result.stdout.trim();
 };
 
-const sourceAccount = process.env["STELLAR_DEPLOYER_SECRET_KEY"];
+const sourceAccount =
+  process.env["STELLAR_DEPLOYER_SECRET_KEY"] ??
+  process.env["PACT_CONTRACT_SOURCE_ACCOUNT"] ??
+  (process.env["APP_ENV"] === "local" ? "pact-deployer" : undefined);
 if (!dryRun && !sourceAccount) {
-  throw new Error("STELLAR_DEPLOYER_SECRET_KEY is required for contract deployment");
+  throw new Error(
+    "STELLAR_DEPLOYER_SECRET_KEY or PACT_CONTRACT_SOURCE_ACCOUNT is required for contract deployment"
+  );
 }
 
 const network = process.env["STELLAR_NETWORK"] ?? "testnet";

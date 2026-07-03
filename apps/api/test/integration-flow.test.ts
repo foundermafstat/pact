@@ -6,6 +6,7 @@ import { issuerService } from "../src/services/issuer-service";
 import { proofJobService } from "../src/services/proof-job-service";
 import { programService } from "../src/services/program-service";
 import { publicAuditService } from "../src/services/public-audit-service";
+import { useDefaultAuth } from "./auth-test-utils";
 
 const testConfig = {
   nodeEnv: "test",
@@ -18,16 +19,17 @@ const testConfig = {
 };
 
 describe("API integration flow", () => {
-  beforeEach(() => {
-    attestorService.reset();
-    issuerService.reset();
-    proofJobService.reset();
+  beforeEach(async () => {
+    await attestorService.reset();
+    await issuerService.reset();
+    await proofJobService.reset();
     programService.reset();
-    publicAuditService.reset();
+    await publicAuditService.reset();
   });
 
   it("runs issuer root, attestor root, proof job, and public audit flows", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const programResponse = await app.inject({
       method: "POST",

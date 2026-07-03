@@ -1,5 +1,7 @@
 import type { ContractEventDto } from "@pact/shared";
+import { Prisma } from "@prisma/client";
 
+import { prisma } from "../db/client";
 import { programService, type ProgramAudit, type ProgramAuditEntry } from "./program-service";
 
 const PRIVATE_FIELD_PATTERN = /private|secret|metrics|salt/i;
@@ -13,23 +15,47 @@ const sanitizePayload = (payload: Record<string, unknown>): Record<string, strin
 };
 
 export class PublicAuditService {
-  private readonly contractEvents = new Map<string, ContractEventDto[]>();
-
-  public reset(): void {
-    this.contractEvents.clear();
+  public async reset(): Promise<void> {
+    await prisma.contractEvent.deleteMany();
   }
 
-  public recordContractEvent(programId: string, event: ContractEventDto): void {
-    const existingEvents = this.contractEvents.get(programId) ?? [];
-    if (
-      existingEvents.some(
-        (item) => item.txHash === event.txHash && item.eventType === event.eventType
-      )
-    ) {
-      return;
-    }
+  public async recordContractEvent(
+    programId: string | null,
+    event: Omit<ContractEventDto, "id">
+  ): Promise<ContractEventDto> {
+    const record = await prisma.contractEvent.upsert({
+      where: {
+        txHash_eventType: {
+          txHash: event.txHash,
+          eventType: event.eventType
+        }
+      },
+      update: {
+        programId,
+        contractId: event.contractId,
+        ledger: event.ledger,
+        payload: event.payload as Prisma.InputJsonValue
+      },
+      create: {
+        programId,
+        contractId: event.contractId,
+        eventType: event.eventType,
+        txHash: event.txHash,
+        ledger: event.ledger,
+        payload: event.payload as Prisma.InputJsonValue,
+        createdAt: new Date(event.createdAt)
+      }
+    });
 
-    this.contractEvents.set(programId, [...existingEvents, event]);
+    return {
+      id: record.id,
+      contractId: record.contractId,
+      eventType: record.eventType,
+      txHash: record.txHash,
+      ledger: record.ledger,
+      payload: record.payload as Record<string, unknown>,
+      createdAt: record.createdAt.toISOString()
+    };
   }
 
   public async getProgramAudit(programId: string): Promise<ProgramAudit | undefined> {
@@ -38,13 +64,15 @@ export class PublicAuditService {
       return undefined;
     }
 
-    const eventTimeline: ProgramAuditEntry[] = (
-      this.contractEvents.get(programId) ?? []
-    ).map((event) => ({
+    const events = await prisma.contractEvent.findMany({
+      where: { programId },
+      orderBy: { createdAt: "asc" }
+    });
+    const eventTimeline: ProgramAuditEntry[] = events.map((event) => ({
       type: event.eventType,
       message: "Contract event indexed",
-      createdAt: event.createdAt,
-      publicFields: sanitizePayload(event.payload)
+      createdAt: event.createdAt.toISOString(),
+      publicFields: sanitizePayload(event.payload as Record<string, unknown>)
     }));
 
     return {

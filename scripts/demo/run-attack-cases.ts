@@ -152,7 +152,7 @@ const main = async (): Promise<void> => {
       app,
       "PACT-ATTACK-WRONG-RECIPIENT"
     );
-    const wrongRecipientJob = proofJobService.createJob({
+    const wrongRecipientJob = await proofJobService.createJob({
       proofType: "MilestoneUnlock",
       requestJson: { programId: wrongRecipientProgramId, milestoneKey: "M1" },
       publicInputsJson: {
@@ -162,9 +162,9 @@ const main = async (): Promise<void> => {
         trancheAmount: "50000000"
       }
     });
-    proofJobService.completeJob(wrongRecipientJob.id, {
+    await proofJobService.completeJob(wrongRecipientJob.id, {
       publicInputsJson: wrongRecipientJob.publicInputsJson,
-      proofJson: { mode: "mock" }
+      proofJson: { mode: "local" }
     });
     results.push(
       expectRejected(

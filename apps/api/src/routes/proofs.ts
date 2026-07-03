@@ -1,12 +1,18 @@
-import { createHash } from "node:crypto";
-
 import type { FastifyInstance } from "fastify";
 import { SubmitMilestoneProofRequestSchema } from "@pact/shared";
 import { z } from "zod";
 
 import { ApiError } from "../errors";
 import { attestorService } from "../services/attestor-service";
+import {
+  escrowContractService,
+  SmartContractNotConfiguredError
+} from "../services/escrow-contract-service";
 import { issuerService } from "../services/issuer-service";
+import {
+  generateEligibilityProof,
+  generateMilestoneProof
+} from "../services/local-proof-service";
 import { proofJobService } from "../services/proof-job-service";
 import { programService } from "../services/program-service";
 import { requireProgramAccess, requireRole, requireSession } from "./auth-guards";
@@ -22,9 +28,6 @@ const MilestoneProofGenerateRequestSchema = z.object({
   milestoneKey: z.string().min(1)
 });
 
-const sha256Hex = (value: string): `0x${string}` =>
-  `0x${createHash("sha256").update(value).digest("hex")}`;
-
 export const registerProofRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post("/api/proofs/eligibility/generate", async (request) => {
     await requireRole(request, ["Project", "Admin"]);
@@ -38,7 +41,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const issuedCredential = issuerService.getCredential(parsed.data.credentialId);
+    const issuedCredential = await issuerService.getCredential(parsed.data.credentialId);
     if (!issuedCredential) {
       throw new ApiError(404, "credential_not_found", "Credential was not found");
     }
@@ -50,7 +53,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const queuedJob = proofJobService.createJob({
+    const queuedJob = await proofJobService.createJob({
       proofType: "Eligibility",
       requestJson: {
         credentialId: issuedCredential.credential.id,
@@ -58,19 +61,24 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
         wallet: issuedCredential.credential.wallet
       }
     });
-    proofJobService.startJob(queuedJob.id);
-    const completedJob = proofJobService.completeJob(queuedJob.id, {
-      publicInputsJson: {
-        proofType: "Eligibility",
-        credentialId: issuedCredential.credential.id,
-        nullifier: sha256Hex(`eligibility:${issuedCredential.credential.id}`)
-      },
-      proofJson: {
-        mode: "mock",
-        proofId: sha256Hex(`mock-eligibility-proof:${queuedJob.id}`),
-        generatedAt: new Date().toISOString()
-      }
-    });
+    await proofJobService.startJob(queuedJob.id);
+    let completedJob;
+    try {
+      completedJob = await proofJobService.completeJob(
+        queuedJob.id,
+        await generateEligibilityProof(issuedCredential.privateCredentialPackage)
+      );
+    } catch (error) {
+      await proofJobService.failJob(
+        queuedJob.id,
+        error instanceof Error ? error.message : "Eligibility proof generation failed"
+      );
+      throw new ApiError(
+        502,
+        "eligibility_proof_generation_failed",
+        error instanceof Error ? error.message : "Eligibility proof generation failed"
+      );
+    }
 
     return { data: completedJob };
   });
@@ -101,7 +109,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
 
     let proofInput;
     try {
-      proofInput = attestorService.buildMilestoneProofInput({
+      proofInput = await attestorService.buildMilestoneProofInput({
         program: record.program,
         tranche
       });
@@ -113,7 +121,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const queuedJob = proofJobService.createJob({
+    const queuedJob = await proofJobService.createJob({
       proofType: "MilestoneUnlock",
       requestJson: {
         programId: record.program.id,
@@ -123,15 +131,27 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       },
       publicInputsJson: proofInput.publicInputs
     });
-    proofJobService.startJob(queuedJob.id);
-    const completedJob = proofJobService.completeJob(queuedJob.id, {
-      publicInputsJson: proofInput.publicInputs,
-      proofJson: {
-        mode: "mock",
-        proofId: sha256Hex(`mock-milestone-proof:${queuedJob.id}`),
-        generatedAt: new Date().toISOString()
-      }
-    });
+    await proofJobService.startJob(queuedJob.id);
+    let completedJob;
+    try {
+      completedJob = await proofJobService.completeJob(
+        queuedJob.id,
+        await generateMilestoneProof({
+          publicInputs: proofInput.publicInputs,
+          privateInputs: proofInput.privateInputs
+        })
+      );
+    } catch (error) {
+      await proofJobService.failJob(
+        queuedJob.id,
+        error instanceof Error ? error.message : "Milestone proof generation failed"
+      );
+      throw new ApiError(
+        502,
+        "milestone_proof_generation_failed",
+        error instanceof Error ? error.message : "Milestone proof generation failed"
+      );
+    }
 
     return { data: completedJob };
   });
@@ -147,7 +167,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const proofJob = proofJobService.getJob(parsed.data.proofJobId);
+    const proofJob = await proofJobService.getJob(parsed.data.proofJobId);
     if (!proofJob) {
       throw new ApiError(404, "proof_job_not_found", "Proof job was not found");
     }
@@ -183,9 +203,32 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const txHash = sha256Hex(
-      `milestone-submit:${proofJob.id}:${parsed.data.programId}:${parsed.data.milestoneKey}`
-    );
+    let txHash: string;
+    try {
+      txHash = await escrowContractService.submitVerifiedMilestoneAndRelease({
+        program: record.program,
+        tranche,
+        milestoneRoot: String(publicInputs["milestoneRoot"]),
+        milestoneNullifier: String(publicInputs["nullifier"]),
+        proofDigest: String(
+          (proofJob.proofJson?.["verification"] as { proofDigest?: unknown } | undefined)
+            ?.proofDigest ?? proofJob.proofJson?.["proofDigest"] ?? ""
+        )
+      });
+    } catch (error) {
+      if (error instanceof SmartContractNotConfiguredError) {
+        throw new ApiError(
+          503,
+          "smart_contract_not_configured",
+          "Smart contract release is not configured"
+        );
+      }
+      throw new ApiError(
+        502,
+        "smart_contract_release_failed",
+        error instanceof Error ? error.message : "Smart contract release failed"
+      );
+    }
     const releasedTranche = await programService.releaseTranche(
       parsed.data.programId,
       parsed.data.milestoneKey,
@@ -209,7 +252,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
   });
   app.get<{ Params: { proofId: string } }>("/api/proofs/:proofId", async (request) => {
     await requireSession(request);
-    const job = proofJobService.getJob(request.params.proofId);
+    const job = await proofJobService.getJob(request.params.proofId);
     if (!job) {
       throw new ApiError(404, "proof_job_not_found", "Proof job was not found");
     }

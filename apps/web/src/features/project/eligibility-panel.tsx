@@ -78,7 +78,7 @@ export function EligibilityPanel() {
           onClick={() => run("credential")}
           type="button"
         >
-          Pass mock KYB
+          Issue signed KYB
         </Button>
         <Button
           disabled={isPending || !credentialId}

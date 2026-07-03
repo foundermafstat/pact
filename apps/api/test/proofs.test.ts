@@ -5,6 +5,7 @@ import { attestorService } from "../src/services/attestor-service";
 import { issuerService } from "../src/services/issuer-service";
 import { proofJobService } from "../src/services/proof-job-service";
 import { programService } from "../src/services/program-service";
+import { useDefaultAuth } from "./auth-test-utils";
 
 const testConfig = {
   nodeEnv: "test",
@@ -17,15 +18,16 @@ const testConfig = {
 };
 
 describe("Proof APIs", () => {
-  beforeEach(() => {
-    attestorService.reset();
-    issuerService.reset();
-    proofJobService.reset();
+  beforeEach(async () => {
+    await attestorService.reset();
+    await issuerService.reset();
+    await proofJobService.reset();
     programService.reset();
   });
 
-  it("creates and completes a mock eligibility proof job", async () => {
+  it("creates and completes a local eligibility proof job", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const credentialResponse = await app.inject({
       method: "POST",
@@ -54,14 +56,15 @@ describe("Proof APIs", () => {
     expect(body.proofType).toBe("Eligibility");
     expect(body.status).toBe("Succeeded");
     expect(body.publicInputsJson.nullifier).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(body.proofJson.mode).toBe("mock");
+    expect(body.proofJson.mode).toBe("local");
     expect(JSON.stringify(body)).not.toContain("credentialSecret");
 
     await app.close();
-  });
+  }, 20_000);
 
   it("rejects eligibility proof jobs for unknown credentials", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const response = await app.inject({
       method: "POST",
@@ -79,6 +82,7 @@ describe("Proof APIs", () => {
 
   it("rejects eligibility proof jobs for revoked credentials", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const credentialResponse = await app.inject({
       method: "POST",
@@ -112,14 +116,15 @@ describe("Proof APIs", () => {
     await app.close();
   });
 
-  it("creates and completes a mock milestone proof job", async () => {
+  it("creates and completes a local milestone proof job", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const programResponse = await app.inject({
       method: "POST",
       url: "/api/programs",
       payload: {
-        programKey: "PACT-DEMO-001",
+        programKey: `PACT-DEMO-001-${Date.now()}`,
         sponsorWallet: "GSPONSOR",
         projectWallet: "GPROJECT",
         assetContract: "USDC",
@@ -181,20 +186,21 @@ describe("Proof APIs", () => {
     expect(body.proofType).toBe("MilestoneUnlock");
     expect(body.status).toBe("Succeeded");
     expect(body.publicInputsJson.milestoneRoot).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(body.proofJson.mode).toBe("mock");
+    expect(body.proofJson.mode).toBe("local");
     expect(JSON.stringify(body)).not.toContain("activeUsers");
 
     await app.close();
-  });
+  }, 20_000);
 
-  it("submits a succeeded milestone proof and releases the tranche", async () => {
+  it("rejects milestone release when smart contract payout is not configured", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const programResponse = await app.inject({
       method: "POST",
       url: "/api/programs",
       payload: {
-        programKey: "PACT-DEMO-003",
+        programKey: `PACT-DEMO-003-${Date.now()}`,
         sponsorWallet: "GSPONSOR",
         projectWallet: "GPROJECT",
         assetContract: "USDC",
@@ -251,6 +257,8 @@ describe("Proof APIs", () => {
     });
     const proofJobId = proofResponse.json().data.id;
 
+    const previousContractId = process.env["MILESTONE_ESCROW_CONTRACT_ID"];
+    delete process.env["MILESTONE_ESCROW_CONTRACT_ID"];
     const submitResponse = await app.inject({
       method: "POST",
       url: "/api/proofs/milestone/submit",
@@ -260,18 +268,21 @@ describe("Proof APIs", () => {
         milestoneKey: "M1"
       }
     });
+    if (previousContractId) {
+      process.env["MILESTONE_ESCROW_CONTRACT_ID"] = previousContractId;
+    }
 
-    const body = submitResponse.json().data;
-    expect(submitResponse.statusCode).toBe(200);
-    expect(body.tranche.status).toBe("Released");
-    expect(body.tranche.txHash).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(body.txHash).toBe(body.tranche.txHash);
+    expect(submitResponse.statusCode).toBe(503);
+    expect(submitResponse.json().error.message).toBe(
+      "Smart contract release is not configured"
+    );
 
     await app.close();
-  });
+  }, 20_000);
 
   it("rejects non-milestone proof jobs during milestone submit", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const credentialResponse = await app.inject({
       method: "POST",
@@ -308,16 +319,17 @@ describe("Proof APIs", () => {
     expect(response.json().error.code).toBe("proof_job_not_submittable");
 
     await app.close();
-  });
+  }, 20_000);
 
   it("rejects milestone proof jobs without active evidence root", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const programResponse = await app.inject({
       method: "POST",
       url: "/api/programs",
       payload: {
-        programKey: "PACT-DEMO-002",
+        programKey: `PACT-DEMO-002-${Date.now()}`,
         sponsorWallet: "GSPONSOR",
         projectWallet: "GPROJECT",
         assetContract: "USDC",
@@ -352,6 +364,7 @@ describe("Proof APIs", () => {
 
   it("returns proof job status without private fields", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const credentialResponse = await app.inject({
       method: "POST",
@@ -388,10 +401,11 @@ describe("Proof APIs", () => {
     expect(JSON.stringify(body)).not.toContain("credentialSecret");
 
     await app.close();
-  });
+  }, 20_000);
 
   it("returns 404 for unknown proof jobs", async () => {
     const app = await buildApiServer(testConfig);
+    await useDefaultAuth(app, "GPROJECT", "Admin");
 
     const response = await app.inject({
       method: "GET",

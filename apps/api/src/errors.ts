@@ -30,12 +30,14 @@ export const registerErrorHandler = (app: FastifyInstance): void => {
   app.setErrorHandler((error: FastifyError | ApiError, _request, reply) => {
     const statusCode =
       error instanceof ApiError ? error.statusCode : error.statusCode ?? 500;
+    const exposeMessage =
+      statusCode < 500 ||
+      (error instanceof ApiError && error.code === "smart_contract_not_configured");
 
     const response: ErrorResponse = {
       error: {
         code: error instanceof ApiError ? error.code : "internal_error",
-        message:
-          statusCode >= 500 ? "Internal server error" : error.message
+        message: exposeMessage ? error.message : "Internal server error"
       }
     };
 

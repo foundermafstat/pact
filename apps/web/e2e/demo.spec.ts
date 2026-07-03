@@ -15,7 +15,7 @@ test("demo routes and attack panel smoke", async ({ page }) => {
 
   await page.goto("/project");
   await expect(page.getByRole("heading", { name: "Project Dashboard" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Pass mock KYB" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Issue signed KYB" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit payout" })).toBeVisible();
 
   await page.goto("/issuer");

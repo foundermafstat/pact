@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 
 import type {
   StripeConnectionStatusDto,
@@ -6,6 +6,7 @@ import type {
 } from "@pact/shared";
 
 import type { StripeIntegrationConfig } from "../config";
+import { prisma } from "../db/client";
 
 export type StripeConnectionStatus =
   | "pending"
@@ -45,8 +46,6 @@ type StoreConnectionInput = {
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
-const now = (): string => new Date().toISOString();
-
 const sha256Hex = (value: string): `0x${string}` =>
   `0x${createHash("sha256").update(value).digest("hex")}`;
 
@@ -63,34 +62,29 @@ const stateHash = (state: string, secret: string): string =>
   createHmac("sha256", secret).update(state).digest("hex");
 
 export class StripeOAuthService {
-  private readonly states = new Map<string, StripeOAuthStateRecord>();
-  private readonly connections = new Map<string, StripeConnectionRecord>();
-
-  public reset(): void {
-    this.states.clear();
-    this.connections.clear();
+  public async reset(): Promise<void> {
+    await prisma.stripeOAuthState.deleteMany();
+    await prisma.stripeConnection.deleteMany();
   }
 
-  public createOAuthStart(
+  public async createOAuthStart(
     config: StripeIntegrationConfig,
     programId: string
-  ): StripeOAuthStartDto {
+  ): Promise<StripeOAuthStartDto> {
     requireStripeOAuthConfig(config);
 
     const state = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MS).toISOString();
     const redirectUri = config.oauthRedirectUri ?? "";
-    const record: StripeOAuthStateRecord = {
-      id: randomUUID(),
-      stateHash: stateHash(state, config.oauthStateSecret ?? ""),
-      programId,
-      redirectUri,
-      expiresAt,
-      consumedAt: null,
-      createdAt: now()
-    };
-    this.states.set(record.stateHash, record);
-
+    await prisma.stripeOAuthState.create({
+      data: {
+        stateHash: stateHash(state, config.oauthStateSecret ?? ""),
+        programId,
+        redirectUri,
+        expiresAt: new Date(expiresAt),
+        consumedAt: null
+      }
+    });
     const authorizeUrl = new URL("https://connect.stripe.com/oauth/authorize");
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set("client_id", config.connectClientId ?? "");
@@ -107,67 +101,122 @@ export class StripeOAuthService {
   public consumeOAuthState(
     config: StripeIntegrationConfig,
     state: string
-  ): StripeOAuthStateRecord | undefined {
+  ): Promise<StripeOAuthStateRecord | undefined> {
     if (!config.oauthStateSecret) {
       throw new Error("STRIPE_OAUTH_STATE_SECRET is required for Stripe OAuth state");
     }
 
     const hash = stateHash(state, config.oauthStateSecret);
-    const record = this.states.get(hash);
-    if (!record || record.consumedAt) {
-      return undefined;
-    }
-    if (new Date(record.expiresAt).getTime() <= Date.now()) {
-      return undefined;
-    }
+    return prisma.$transaction(async (tx) => {
+      const record = await tx.stripeOAuthState.findUnique({
+        where: { stateHash: hash }
+      });
+      if (!record || record.consumedAt) {
+        return undefined;
+      }
+      if (record.expiresAt.getTime() <= Date.now()) {
+        return undefined;
+      }
 
-    const consumed = {
-      ...record,
-      consumedAt: now()
-    };
-    this.states.set(hash, consumed);
-    return consumed;
+      const consumed = await tx.stripeOAuthState.update({
+        where: { id: record.id },
+        data: { consumedAt: new Date() }
+      });
+
+      return {
+        id: consumed.id,
+        stateHash: consumed.stateHash,
+        programId: consumed.programId,
+        redirectUri: consumed.redirectUri,
+        expiresAt: consumed.expiresAt.toISOString(),
+        consumedAt: consumed.consumedAt?.toISOString() ?? null,
+        createdAt: consumed.createdAt.toISOString()
+      };
+    });
   }
 
-  public storeConnection(input: StoreConnectionInput): StripeConnectionRecord {
+  public async storeConnection(input: StoreConnectionInput): Promise<StripeConnectionRecord> {
     const accountSalt = randomBytes(16).toString("hex");
-    const createdAt = now();
-    const connection: StripeConnectionRecord = {
-      id: randomUUID(),
-      programId: input.programId,
-      stripeAccountId: input.stripeAccountId,
-      stripeAccountHash: sha256Hex(
-        `stripe-account:${input.stripeAccountId}:${accountSalt}`
-      ),
-      accountSalt,
-      livemode: input.livemode,
-      scope: input.scope,
-      status: "connected",
-      createdAt,
-      updatedAt: createdAt,
-      deauthorizedAt: null
+    const stripeAccountHash = sha256Hex(
+      `stripe-account:${input.stripeAccountId}:${accountSalt}`
+    );
+    await prisma.stripeConnection.updateMany({
+      where: {
+        programId: input.programId,
+        status: "connected"
+      },
+      data: {
+        status: "deauthorized",
+        deauthorizedAt: new Date()
+      }
+    });
+    const connection = await prisma.stripeConnection.create({
+      data: {
+        programId: input.programId,
+        stripeAccountId: input.stripeAccountId,
+        stripeAccountHash,
+        accountSalt,
+        livemode: input.livemode,
+        scope: input.scope,
+        status: "connected"
+      }
+    });
+
+    return {
+      id: connection.id,
+      programId: connection.programId,
+      stripeAccountId: connection.stripeAccountId,
+      stripeAccountHash: connection.stripeAccountHash as `0x${string}`,
+      accountSalt: connection.accountSalt,
+      livemode: connection.livemode,
+      scope: connection.scope,
+      status: connection.status as StripeConnectionStatus,
+      createdAt: connection.createdAt.toISOString(),
+      updatedAt: connection.updatedAt.toISOString(),
+      deauthorizedAt: connection.deauthorizedAt?.toISOString() ?? null
     };
-    this.connections.set(input.programId, connection);
-    return connection;
   }
 
-  public getConnection(programId: string): StripeConnectionRecord | undefined {
-    const connection = this.connections.get(programId);
-    if (!connection || connection.status !== "connected") {
+  public async getConnection(programId: string): Promise<StripeConnectionRecord | undefined> {
+    const connection = await prisma.stripeConnection.findFirst({
+      where: {
+        programId,
+        status: "connected"
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    if (!connection) {
       return undefined;
     }
-    return connection;
+    return {
+      id: connection.id,
+      programId: connection.programId,
+      stripeAccountId: connection.stripeAccountId,
+      stripeAccountHash: connection.stripeAccountHash as `0x${string}`,
+      accountSalt: connection.accountSalt,
+      livemode: connection.livemode,
+      scope: connection.scope,
+      status: connection.status as StripeConnectionStatus,
+      createdAt: connection.createdAt.toISOString(),
+      updatedAt: connection.updatedAt.toISOString(),
+      deauthorizedAt: connection.deauthorizedAt?.toISOString() ?? null
+    };
   }
 
-  public getStatus(programId: string): StripeConnectionStatusDto {
-    const connection = this.connections.get(programId);
+  public async getStatus(programId: string): Promise<StripeConnectionStatusDto> {
+    const connection = await prisma.stripeConnection.findFirst({
+      where: { programId },
+      orderBy: { createdAt: "desc" }
+    });
     if (!connection) {
-      const pendingState = [...this.states.values()].find(
-        (state) =>
-          state.programId === programId &&
-          !state.consumedAt &&
-          new Date(state.expiresAt).getTime() > Date.now()
-      );
+      const pendingState = await prisma.stripeOAuthState.findFirst({
+        where: {
+          programId,
+          consumedAt: null,
+          expiresAt: { gt: new Date() }
+        },
+        orderBy: { createdAt: "desc" }
+      });
       if (pendingState) {
         return {
           source: "stripe",
@@ -179,7 +228,7 @@ export class StripeOAuthService {
           scope: null,
           connectedAt: null,
           deauthorizedAt: null,
-          updatedAt: pendingState.createdAt
+          updatedAt: pendingState.createdAt.toISOString()
         };
       }
 
@@ -201,30 +250,45 @@ export class StripeOAuthService {
       source: "stripe",
       mode: "test",
       programId,
-      status: connection.status,
+      status: connection.status as StripeConnectionStatus,
       connectedAccountHash: connection.stripeAccountHash,
       livemode: connection.livemode,
       scope: connection.scope,
-      connectedAt: connection.createdAt,
-      deauthorizedAt: connection.deauthorizedAt,
-      updatedAt: connection.updatedAt
+      connectedAt: connection.createdAt.toISOString(),
+      deauthorizedAt: connection.deauthorizedAt?.toISOString() ?? null,
+      updatedAt: connection.updatedAt.toISOString()
     };
   }
 
-  public disconnect(programId: string): StripeConnectionRecord | undefined {
-    const connection = this.connections.get(programId);
+  public async disconnect(programId: string): Promise<StripeConnectionRecord | undefined> {
+    const connection = await prisma.stripeConnection.findFirst({
+      where: { programId, status: "connected" },
+      orderBy: { createdAt: "desc" }
+    });
     if (!connection) {
       return undefined;
     }
 
-    const disconnected = {
-      ...connection,
-      status: "deauthorized" as const,
-      updatedAt: now(),
-      deauthorizedAt: now()
+    const disconnected = await prisma.stripeConnection.update({
+      where: { id: connection.id },
+      data: {
+        status: "deauthorized",
+        deauthorizedAt: new Date()
+      }
+    });
+    return {
+      id: disconnected.id,
+      programId: disconnected.programId,
+      stripeAccountId: disconnected.stripeAccountId,
+      stripeAccountHash: disconnected.stripeAccountHash as `0x${string}`,
+      accountSalt: disconnected.accountSalt,
+      livemode: disconnected.livemode,
+      scope: disconnected.scope,
+      status: "deauthorized",
+      createdAt: disconnected.createdAt.toISOString(),
+      updatedAt: disconnected.updatedAt.toISOString(),
+      deauthorizedAt: disconnected.deauthorizedAt?.toISOString() ?? null
     };
-    this.connections.set(programId, disconnected);
-    return disconnected;
   }
 }
 

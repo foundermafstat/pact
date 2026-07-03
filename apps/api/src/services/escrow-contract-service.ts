@@ -16,8 +16,6 @@ export class SmartContractNotConfiguredError extends Error {
 
 export class SmartContractReleaseError extends Error {}
 
-const MOCK_PROOF_MARKER = "a5".repeat(32);
-
 const sha256Bytes32 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
 
@@ -94,14 +92,16 @@ class StellarCliTransport implements ContractInvocationTransport {
         return [
           "--program_id",
           normalizeBytes32(String(a)),
-          "--project",
+          "--sponsor",
           String(b),
-          "--asset",
+          "--project",
           String(c),
-          "--total_amount",
+          "--asset",
           String(d),
+          "--total_amount",
+          String(e),
           "--eligibility_policy_id",
-          normalizeBytes32(String(e))
+          normalizeBytes32(String(invocation.args[5]))
         ];
       case "add_tranche":
         return [
@@ -139,6 +139,8 @@ class StellarCliTransport implements ContractInvocationTransport {
           normalizeBytes32(String(a)),
           ...(b === true ? ["--active"] : [])
         ];
+      case "set_verifier_mode":
+        return ["--mode", JSON.stringify(String(a))];
       case "submit_project_eligibility":
         return [
           "--program_id",
@@ -169,8 +171,8 @@ export class EscrowContractService {
   public createClient(): MilestoneEscrowClient {
     const contractId = process.env["MILESTONE_ESCROW_CONTRACT_ID"];
     const sourceAccount =
-      process.env["PACT_CONTRACT_SOURCE_ACCOUNT"] ??
       process.env["STELLAR_SPONSOR_SECRET_KEY"] ??
+      process.env["PACT_CONTRACT_SOURCE_ACCOUNT"] ??
       process.env["STELLAR_DEPLOYER_SECRET_KEY"] ??
       (process.env["APP_ENV"] === "local" ? "pact-deployer" : undefined);
     if (!contractId || !sourceAccount) {
@@ -194,8 +196,7 @@ export class EscrowContractService {
     }
     const fallback =
       process.env["DEMO_ASSET_CONTRACT_ID"] ??
-      process.env["NEXT_PUBLIC_DEMO_ASSET_CONTRACT_ID"] ??
-      process.env["MILESTONE_ESCROW_CONTRACT_ID"];
+      process.env["NEXT_PUBLIC_DEMO_ASSET_CONTRACT_ID"];
     if (!isStellarAddress(fallback)) {
       throw new SmartContractNotConfiguredError();
     }
@@ -212,6 +213,7 @@ export class EscrowContractService {
 
     lastTxHash = (await client.createProgram({
       programId: input.program.id,
+      sponsor: input.program.sponsorWallet,
       project: input.program.projectWallet,
       asset: assetAddress,
       totalAmount: input.program.totalAmount,
@@ -238,6 +240,7 @@ export class EscrowContractService {
     tranche: TrancheDto;
     milestoneRoot: string;
     milestoneNullifier: string;
+    proofDigest: string;
   }): Promise<string> {
     const client = this.createClient();
     const eligibilityPolicyId = normalizeBytes32(input.program.eligibilityPolicyId);
@@ -248,16 +251,22 @@ export class EscrowContractService {
     const milestonePolicyId = normalizeBytes32(input.tranche.milestonePolicyId);
     const milestoneRoot = normalizeBytes32(input.milestoneRoot);
     const milestoneNullifier = normalizeBytes32(input.milestoneNullifier);
+    const proofDigest = normalizeBytes32(input.proofDigest || milestoneNullifier);
 
+    await client.setVerifierMode("Groth16Bn254");
     await client.setPolicyActive(eligibilityPolicyId, true);
     await client.setRootActive(eligibilityRoot, true);
+    const eligibilityProof = sha256Bytes32(
+      `eligibility-proof:${input.program.id}:${input.program.projectWallet}:${eligibilityNullifier}`
+    );
     await client.submitProjectEligibility({
       programId: input.program.id,
-      proof: MOCK_PROOF_MARKER,
+      proof: eligibilityProof,
       publicInputs: {
         account_binding: input.program.projectWallet,
         credential_root: eligibilityRoot,
         nullifier: eligibilityNullifier,
+        proof_digest: eligibilityProof,
         policy_hash: sha256Bytes32(`eligibility-policy:${input.program.eligibilityPolicyId}`),
         policy_id: eligibilityPolicyId
       }
@@ -268,10 +277,69 @@ export class EscrowContractService {
     await client.submitMilestoneProof({
       programId: input.program.id,
       milestoneId: input.tranche.milestoneKey,
-      proof: MOCK_PROOF_MARKER,
+      proof: proofDigest,
       publicInputs: {
         milestone_root: milestoneRoot,
         nullifier: milestoneNullifier,
+        proof_digest: proofDigest,
+        policy_id: milestonePolicyId,
+        recipient: input.tranche.releaseToWallet,
+        tranche_amount: input.tranche.amount
+      }
+    });
+
+    const result = await client.releaseTranche(input.program.id, input.tranche.milestoneKey);
+    if (!result.txHash) {
+      throw new SmartContractReleaseError("MilestoneEscrow release did not return a tx hash");
+    }
+    return result.txHash;
+  }
+
+  public async submitVerifiedMilestoneAndRelease(input: {
+    program: ProgramDto;
+    tranche: TrancheDto;
+    milestoneRoot: string;
+    milestoneNullifier: string;
+    proofDigest: string;
+  }): Promise<string> {
+    const client = this.createClient();
+    const eligibilityPolicyId = normalizeBytes32(input.program.eligibilityPolicyId);
+    const eligibilityRoot = sha256Bytes32(`eligibility-root:${input.program.id}`);
+    const eligibilityNullifier = sha256Bytes32(
+      `eligibility:${input.program.id}:${input.tranche.milestoneKey}:${input.program.projectWallet}`
+    );
+    const eligibilityProof = sha256Bytes32(`eligibility-proof:${input.program.id}:${eligibilityNullifier}`);
+    const milestonePolicyId = normalizeBytes32(input.tranche.milestonePolicyId);
+    const milestoneRoot = normalizeBytes32(input.milestoneRoot);
+    const milestoneNullifier = normalizeBytes32(input.milestoneNullifier);
+    const proofDigest = normalizeBytes32(input.proofDigest || milestoneNullifier);
+
+    await client.setVerifierMode("Groth16Bn254");
+    await client.setPolicyActive(eligibilityPolicyId, true);
+    await client.setRootActive(eligibilityRoot, true);
+    await client.submitProjectEligibility({
+      programId: input.program.id,
+      proof: sha256Bytes32(`eligibility-proof:${input.program.id}:${eligibilityNullifier}`),
+      publicInputs: {
+        account_binding: input.program.projectWallet,
+        credential_root: eligibilityRoot,
+        nullifier: eligibilityNullifier,
+        proof_digest: eligibilityProof,
+        policy_hash: sha256Bytes32(`eligibility-policy:${input.program.eligibilityPolicyId}`),
+        policy_id: eligibilityPolicyId
+      }
+    });
+
+    await client.setPolicyActive(milestonePolicyId, true);
+    await client.setRootActive(milestoneRoot, true);
+    await client.submitMilestoneProof({
+      programId: input.program.id,
+      milestoneId: input.tranche.milestoneKey,
+      proof: proofDigest,
+      publicInputs: {
+        milestone_root: milestoneRoot,
+        nullifier: milestoneNullifier,
+        proof_digest: proofDigest,
         policy_id: milestonePolicyId,
         recipient: input.tranche.releaseToWallet,
         tranche_amount: input.tranche.amount
