@@ -9,7 +9,7 @@ import {
   useState
 } from "react";
 import type { ReactNode } from "react";
-import type { AuthSessionDto, AuthUserDto } from "@pact/shared";
+import type { AuthSessionDto, AuthUserDto, Role } from "@pact/shared";
 
 import { webEnv } from "@/config/env";
 import { PactApiClient } from "@/lib/api-client";
@@ -24,6 +24,7 @@ type AuthContextValue = {
   connect: (provider: WalletProvider) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  selectRole: (role: Extract<Role, "Investor" | "Project">) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -166,6 +167,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [client]);
 
+  const selectRole = useCallback(
+    async (role: Extract<Role, "Investor" | "Project">) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await client.selectAccountRole({ role });
+        setSession(response.data);
+        return true;
+      } catch (caughtError) {
+        setError(caughtError instanceof Error ? caughtError.message : "Could not select role");
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [client]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: session?.user ?? null,
@@ -174,9 +193,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       connect,
       logout,
-      refresh
+      refresh,
+      selectRole
     }),
-    [connect, error, isLoading, logout, refresh, session]
+    [connect, error, isLoading, logout, refresh, selectRole, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

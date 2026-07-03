@@ -165,7 +165,9 @@ html.dashboard-theme {
 }
 
 .dashboard-shell {
-  min-height: 100svh;
+  box-sizing: border-box;
+  height: 100svh;
+  overflow: hidden;
   padding: 0.75rem;
   background:
     radial-gradient(circle at 16% 0%, rgba(244, 183, 61, 0.13), transparent 24rem),
@@ -174,7 +176,8 @@ html.dashboard-theme {
 }
 
 .dashboard-frame {
-  min-height: calc(100svh - 1.5rem);
+  height: calc(100svh - 1.5rem);
+  min-height: 0;
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--border), white 7%);
   border-radius: 1.25rem;
@@ -185,7 +188,17 @@ html.dashboard-theme {
 }
 
 .dashboard-frame [data-slot="sidebar-provider"] {
-  min-height: calc(100svh - 1.5rem);
+  height: calc(100svh - 1.5rem);
+  min-height: 0;
+}
+
+.dashboard-frame [data-slot="sidebar-inset"] {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-frame [data-slot="sidebar-inset"] > div:last-child {
+  overflow: auto;
 }
 
 .dashboard-search {
@@ -245,14 +258,16 @@ html.dashboard-theme {
   }
 
   .dashboard-frame {
-    min-height: 100svh;
+    height: 100svh;
+    min-height: 0;
     border-right: 0;
     border-left: 0;
     border-radius: 0;
   }
 
   .dashboard-frame [data-slot="sidebar-provider"] {
-    min-height: 100svh;
+    height: 100svh;
+    min-height: 0;
   }
 }
 

@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Role } from "@pact/shared";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   BadgeCheckIcon,
   Building2Icon,
@@ -23,6 +23,7 @@ import { WalletLogin } from "@/components/auth/wallet-login";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,14 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import {
   Sidebar,
   SidebarContent,
@@ -127,6 +136,30 @@ function formatWallet(wallet: string) {
   return `${wallet.slice(0, 5)}...${wallet.slice(-5)}`;
 }
 
+type WorkspaceRole = Extract<Role, "Investor" | "Project">;
+
+function hasInvestorWorkspace(roles: Role[]) {
+  return roles.includes("Investor") || roles.includes("Sponsor");
+}
+
+function hasWorkspaceRole(roles: Role[]) {
+  return hasInvestorWorkspace(roles) || roles.includes("Project");
+}
+
+function workspaceHref(role: WorkspaceRole) {
+  return role === "Project" ? "/dashboard/startup" : "/dashboard/investor";
+}
+
+function selectedWorkspaceRole(pathname: string, roles: Role[]): WorkspaceRole {
+  if (pathname.startsWith("/dashboard/startup")) {
+    return "Project";
+  }
+  if (pathname.startsWith("/dashboard/investor")) {
+    return "Investor";
+  }
+  return roles.includes("Project") ? "Project" : "Investor";
+}
+
 function useDashboardTheme() {
   useEffect(() => {
     const root = document.documentElement;
@@ -146,13 +179,99 @@ function useDashboardTheme() {
   }, []);
 }
 
+function RoleSelection() {
+  const router = useRouter();
+  const { error, isLoading, selectRole } = useAuth();
+  const [role, setRole] = useState<WorkspaceRole>("Investor");
+
+  const continueToWorkspace = async () => {
+    const selected = await selectRole(role);
+    if (selected) {
+      router.replace(workspaceHref(role));
+    }
+  };
+
+  return (
+    <div className="flex h-full items-center justify-center bg-background p-6">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Choose your workspace</CardTitle>
+          <CardDescription>Are you an investor or a startup representative?</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Select onValueChange={(value) => setRole(value as WorkspaceRole)} value={role}>
+            <SelectTrigger aria-label="Workspace type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="Investor">Investor</SelectItem>
+                <SelectItem value="Project">Startup representative</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Button
+            disabled={isLoading}
+            onClick={() => void continueToWorkspace()}
+            type="button"
+          >
+            Continue
+          </Button>
+          {error ? (
+            <div className="text-sm text-destructive">{error}</div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function WorkspaceSwitcher({
+  pathname,
+  roles
+}: {
+  pathname: string;
+  roles: Role[];
+}) {
+  const router = useRouter();
+  const { isLoading, selectRole } = useAuth();
+  const value = selectedWorkspaceRole(pathname, roles);
+
+  const changeWorkspace = async (nextRole: WorkspaceRole) => {
+    const alreadyAllowed =
+      nextRole === "Investor" ? hasInvestorWorkspace(roles) : roles.includes("Project");
+    const selected = alreadyAllowed || (await selectRole(nextRole));
+    if (selected) {
+      router.push(workspaceHref(nextRole));
+    }
+  };
+
+  return (
+    <Select
+      disabled={isLoading}
+      onValueChange={(nextRole) => void changeWorkspace(nextRole as WorkspaceRole)}
+      value={value}
+    >
+      <SelectTrigger aria-label="Workspace type" className="hidden w-56 md:flex">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="Investor">Investor</SelectItem>
+          <SelectItem value="Project">Startup representative</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
 function DashboardContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-background text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center bg-background text-sm text-muted-foreground">
         Loading session
       </div>
     );
@@ -160,10 +279,14 @@ function DashboardContent({ children }: { children: ReactNode }) {
 
   if (!user) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-background p-6">
+      <div className="flex h-full items-center justify-center bg-background p-6">
         <WalletLogin />
       </div>
     );
+  }
+
+  if (user.roles.length === 0 || (user.roles.includes("Admin") && !hasWorkspaceRole(user.roles))) {
+    return <RoleSelection />;
   }
 
   const visibleSections = navSections
@@ -190,7 +313,7 @@ function DashboardContent({ children }: { children: ReactNode }) {
                   </span>
                   <span data-sidebar-label className="flex min-w-0 flex-col">
                     <span className="truncate font-semibold leading-none">Pact</span>
-                    <span className="truncate text-xs text-muted-foreground">Admin console</span>
+                    <span className="truncate text-xs text-muted-foreground">Pact workspace</span>
                   </span>
                 </Link>
               </SidebarMenuButton>
@@ -303,6 +426,7 @@ function DashboardContent({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <WorkspaceSwitcher pathname={pathname} roles={user.roles} />
             <Badge variant="outline">Network: {webEnv.stellarNetwork}</Badge>
             <Button asChild size="sm" variant="ghost">
               <Link href="/">Landing</Link>

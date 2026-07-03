@@ -12,12 +12,12 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SEP53_PREFIX = "Stellar Signed Message:\n";
 
 const rolePriority: Role[] = [
-  "Admin",
-  "Issuer",
-  "Attestor",
   "Project",
   "Investor",
   "Sponsor",
+  "Admin",
+  "Issuer",
+  "Attestor",
   "Observer"
 ];
 
@@ -302,6 +302,35 @@ export class AuthService {
     };
   }
 
+  public async selectAccountRole(input: { wallet: string; role: "Investor" | "Project" }) {
+    const wallet = normalizeWallet(input.wallet);
+    const account = await prisma.walletAccount.findUniqueOrThrow({
+      where: { wallet },
+      include: { roles: true }
+    });
+    const existingRoles = account.roles.map((item) => item.role as Role);
+    if (existingRoles.includes(input.role)) {
+      return toAuthUser(account.wallet, existingRoles);
+    }
+
+    await prisma.walletRole.upsert({
+      where: {
+        walletAccountId_role: {
+          walletAccountId: account.id,
+          role: input.role
+        }
+      },
+      update: {},
+      create: {
+        walletAccountId: account.id,
+        role: input.role,
+        grantedByWallet: account.wallet
+      }
+    });
+
+    return toAuthUser(account.wallet, [...existingRoles, input.role]);
+  }
+
   private async ensureDefaultRoles(accountId: string, wallet: string): Promise<void> {
     const existingRoles = await prisma.walletRole.findMany({
       where: { walletAccountId: accountId }
@@ -310,9 +339,6 @@ export class AuthService {
     const bootstrapAdmins = readBootstrapAdminWallets();
     const requiredRoles: Role[] = [];
 
-    if (roles.size === 0) {
-      requiredRoles.push("Investor");
-    }
     if (bootstrapAdmins.has(wallet) && !roles.has("Admin")) {
       requiredRoles.push("Admin");
     }

@@ -25,6 +25,7 @@ export {
   RootDtoSchema,
   RootPublishRequestSchema,
   RoleSchema,
+  SelectAccountRoleRequestSchema,
   StellarAddressSchema,
   SubmitMilestoneProofRequestSchema,
   TimestampSchema,
@@ -64,6 +65,7 @@ export type {
   ProgramDto,
   ProofJobDto,
   RootDto,
+  SelectAccountRoleRequest,
   SubmitMilestoneProofRequest,
   TrancheDto,
   WalletRoleDto

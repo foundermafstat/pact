@@ -18,6 +18,7 @@ import {
   RootBuildRequestSchema,
   RootDtoSchema,
   RootPublishRequestSchema,
+  SelectAccountRoleRequestSchema,
   SubmitMilestoneProofRequestSchema,
   TrancheDtoSchema,
   WalletRoleDtoSchema,
@@ -29,6 +30,7 @@ import {
   type CreateProgramRequest,
   type FundProgramRequest,
   type GenerateProofRequest,
+  type SelectAccountRoleRequest,
   type SubmitMilestoneProofRequest
 } from "@pact/shared";
 
@@ -37,6 +39,23 @@ type Parser<T> = {
 };
 
 type FetchLike = typeof fetch;
+
+const normalizeLocalApiUrl = (baseUrl: string): string => {
+  if (typeof window === "undefined") {
+    return baseUrl.replace(/\/$/, "");
+  }
+
+  try {
+    const url = new URL(baseUrl);
+    const localHosts = new Set(["localhost", "127.0.0.1"]);
+    if (localHosts.has(url.hostname) && localHosts.has(window.location.hostname)) {
+      url.hostname = window.location.hostname;
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return baseUrl.replace(/\/$/, "");
+  }
+};
 
 const ProgramRecordResponseSchema = {
   parse: (value: unknown) => {
@@ -78,10 +97,14 @@ export class PactApiClientError extends Error {
 }
 
 export class PactApiClient {
+  private readonly baseUrl: string;
+
   public constructor(
-    private readonly baseUrl: string,
+    baseUrl: string,
     private readonly fetcher: FetchLike = globalThis.fetch.bind(globalThis)
-  ) {}
+  ) {
+    this.baseUrl = normalizeLocalApiUrl(baseUrl);
+  }
 
   public createAuthChallenge(input: AuthChallengeRequest) {
     return this.request("/api/auth/challenge", {
@@ -110,6 +133,14 @@ export class PactApiClient {
     return this.request("/api/auth/logout", {
       method: "POST",
       schema: UnknownSuccessSchema
+    });
+  }
+
+  public selectAccountRole(input: SelectAccountRoleRequest) {
+    return this.request("/api/auth/select-role", {
+      method: "POST",
+      body: SelectAccountRoleRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(AuthSessionDtoSchema)
     });
   }
 

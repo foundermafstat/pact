@@ -25,10 +25,10 @@ export function LandingTemplate() {
 
         <nav className="template-nav" aria-label="Landing navigation">
           <Button asChild variant="link">
-            <Link href="/dashboard/investor">Sponsor</Link>
+            <Link href="/dashboard/investor">Investor</Link>
           </Button>
           <Button asChild variant="link">
-            <Link href="/dashboard/startup">Project</Link>
+            <Link href="/dashboard/startup">Startup</Link>
           </Button>
           <Button asChild variant="link">
             <Link href="/dashboard/admin/issuer">Issuer</Link>

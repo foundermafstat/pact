@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import {
   AssignWalletRoleRequestSchema,
   AuthChallengeRequestSchema,
-  AuthVerifyRequestSchema
+  AuthVerifyRequestSchema,
+  SelectAccountRoleRequestSchema
 } from "@pact/shared";
 import { stringifySetCookie } from "cookie";
 
@@ -81,6 +82,20 @@ export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> =>
     );
 
     return { data: { ok: true } };
+  });
+
+  app.post("/api/auth/select-role", async (request) => {
+    const session = await requireSession(request);
+    const body = SelectAccountRoleRequestSchema.parse(request.body);
+    return {
+      data: {
+        user: await authService.selectAccountRole({
+          wallet: session.user.wallet,
+          role: body.role
+        }),
+        expiresAt: session.expiresAt.toISOString()
+      }
+    };
   });
 
   app.get("/api/admin/wallet-roles", async (request) => {

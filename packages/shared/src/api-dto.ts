@@ -226,6 +226,10 @@ export const AssignWalletRoleRequestSchema = z.object({
   role: RoleSchema
 });
 
+export const SelectAccountRoleRequestSchema = z.object({
+  role: z.enum(["Investor", "Project"])
+});
+
 export const ApiErrorResponseSchema = z.object({
   error: z.object({
     code: NonEmptyStringSchema,
@@ -270,4 +274,7 @@ export type AuthSessionDto = z.infer<typeof AuthSessionDtoSchema>;
 export type WalletRoleDto = z.infer<typeof WalletRoleDtoSchema>;
 export type AssignWalletRoleRequest = z.infer<
   typeof AssignWalletRoleRequestSchema
+>;
+export type SelectAccountRoleRequest = z.infer<
+  typeof SelectAccountRoleRequestSchema
 >;

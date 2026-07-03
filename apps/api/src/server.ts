@@ -6,6 +6,15 @@ import { registerPrismaShutdown } from "./db/client";
 import { registerErrorHandler } from "./errors";
 import { registerApiRoutes } from "./routes";
 
+const localHostAliases = (origin: string): string[] => [
+  origin,
+  origin.replace("127.0.0.1", "localhost"),
+  origin.replace("localhost", "127.0.0.1")
+];
+
+const parseCorsOrigins = (origin: string): string[] =>
+  [...new Set(origin.split(",").flatMap((item) => localHostAliases(item.trim())).filter(Boolean))];
+
 export const buildApiServer = async (
   config: ApiConfig = loadApiConfig()
 ): Promise<FastifyInstance> => {
@@ -14,7 +23,7 @@ export const buildApiServer = async (
   });
 
   await app.register(cors, {
-    origin: config.corsOrigin,
+    origin: parseCorsOrigins(config.corsOrigin),
     credentials: true
   });
 
