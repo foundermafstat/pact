@@ -108,7 +108,7 @@ export function AttestorConsole() {
           <Label htmlFor="pilot-partners">Pilot partners</Label>
           <Input id="pilot-partners" value={metrics.pilotPartners} onChange={(event) => setMetrics((current) => ({ ...current, pilotPartners: event.target.value }))} />
         </div>
-        <div className="flex items-center gap-2 pt-7">
+        <div className="flex h-10 items-center gap-3 self-end">
           <Checkbox checked={metrics.auditPassed} onCheckedChange={(checked) => setMetrics((current) => ({ ...current, auditPassed: checked === true }))} id="audit-passed" />
           <Label htmlFor="audit-passed">Audit passed</Label>
         </div>

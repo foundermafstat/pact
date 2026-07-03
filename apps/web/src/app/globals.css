@@ -129,6 +129,133 @@
   --sidebar-ring: oklch(0.7 0.08 230);
 }
 
+html.dashboard-theme {
+  --background: #090909;
+  --foreground: #f7f3e9;
+  --card: #171717;
+  --card-foreground: #f7f3e9;
+  --popover: #202020;
+  --popover-foreground: #f7f3e9;
+  --primary: #f4b73d;
+  --primary-foreground: #171007;
+  --secondary: #26221a;
+  --secondary-foreground: #f7d479;
+  --muted: #202020;
+  --muted-foreground: #a8a29a;
+  --accent: #332713;
+  --accent-foreground: #ffd66b;
+  --destructive: #f87171;
+  --destructive-foreground: #190808;
+  --border: #2d2b27;
+  --input: #34312b;
+  --ring: #f4b73d;
+  --chart-1: #f4b73d;
+  --chart-2: #df8f35;
+  --chart-3: #ffe08a;
+  --chart-4: #9f7a2e;
+  --chart-5: #f0c15f;
+  --sidebar: #171717;
+  --sidebar-foreground: #f7f3e9;
+  --sidebar-primary: #f4b73d;
+  --sidebar-primary-foreground: #171007;
+  --sidebar-accent: #332713;
+  --sidebar-accent-foreground: #ffd66b;
+  --sidebar-border: #2d2b27;
+  --sidebar-ring: #f4b73d;
+}
+
+.dashboard-shell {
+  min-height: 100svh;
+  padding: 0.75rem;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(244, 183, 61, 0.13), transparent 24rem),
+    radial-gradient(circle at 82% 10%, rgba(255, 214, 107, 0.08), transparent 22rem),
+    var(--background);
+}
+
+.dashboard-frame {
+  min-height: calc(100svh - 1.5rem);
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--border), white 7%);
+  border-radius: 1.25rem;
+  background: color-mix(in oklab, var(--background), white 1%);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-frame [data-slot="sidebar-provider"] {
+  min-height: calc(100svh - 1.5rem);
+}
+
+.dashboard-search {
+  border: 1px solid color-mix(in oklab, var(--border), white 8%);
+  background: color-mix(in oklab, var(--background), white 3%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.dashboard-theme [data-slot="card"] {
+  border-color: color-mix(in oklab, var(--border), white 8%);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 36%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 18px 50px rgba(0, 0, 0, 0.26);
+}
+
+.dashboard-theme [data-slot="input"],
+.dashboard-theme [data-slot="select-trigger"] {
+  min-height: 2.75rem;
+  border-color: color-mix(in oklab, var(--input), white 8%);
+  background: color-mix(in oklab, var(--background), black 8%);
+}
+
+.dashboard-theme [data-slot="badge"][data-variant="outline"] {
+  border-color: color-mix(in oklab, var(--primary), transparent 56%);
+  color: var(--accent-foreground);
+}
+
+.dashboard-theme [data-slot="button"][data-variant="default"] {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 10px 28px rgba(244, 183, 61, 0.2);
+}
+
+.dashboard-theme [data-slot="button"][data-variant="outline"] {
+  border-color: color-mix(in oklab, var(--border), white 10%);
+  background: color-mix(in oklab, var(--background), white 2%);
+}
+
+.dashboard-theme [data-slot="button"][data-variant="ghost"]:hover {
+  color: var(--accent-foreground);
+}
+
+.dashboard-theme [data-slot="dropdown-menu-content"],
+.dashboard-theme [data-slot="select-content"] {
+  border-color: color-mix(in oklab, var(--border), white 8%);
+  background: color-mix(in oklab, var(--popover), white 3%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
+}
+
+@media (max-width: 767px) {
+  .dashboard-shell {
+    padding: 0;
+  }
+
+  .dashboard-frame {
+    min-height: 100svh;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .dashboard-frame [data-slot="sidebar-provider"] {
+    min-height: 100svh;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
