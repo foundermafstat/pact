@@ -210,7 +210,8 @@ html.dashboard-theme {
 }
 
 .dashboard-frame [data-slot="sidebar-inset"] > div:last-child {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .dashboard-search {

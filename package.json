@@ -22,6 +22,7 @@
     "zk:prove:payment-revenue": "bash circuits/scripts/snarkjs-pipeline.sh payment-revenue all",
     "zk:test:proofs": "bash circuits/scripts/snarkjs-pipeline.sh eligibility all && bash circuits/scripts/snarkjs-pipeline.sh milestone all && bash circuits/scripts/snarkjs-pipeline.sh payment-revenue all",
     "seed:demo": "tsx scripts/seed/seed-demo.ts",
+    "seed:marketplace": "tsx scripts/seed/seed-marketplace-demo.ts",
     "demo:happy-path": "tsx scripts/demo/run-happy-path.ts",
     "demo:attacks": "tsx scripts/demo/run-attack-cases.ts",
     "deploy:contracts": "tsx scripts/deploy/contracts.ts",

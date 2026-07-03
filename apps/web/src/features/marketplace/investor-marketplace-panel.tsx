@@ -131,9 +131,9 @@ export function InvestorMarketplacePanel() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <form
-        className="flex flex-col gap-4"
+        className="flex min-w-0 flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           setError(null);
@@ -246,19 +246,19 @@ export function InvestorMarketplacePanel() {
         ) : null}
       </form>
 
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="flex flex-col gap-3">
+      <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="flex min-w-0 flex-col gap-3">
           <h2 className="text-base font-semibold">Startup pool</h2>
-          <div className="overflow-hidden rounded-md border">
-            <Table>
+          <div className="min-w-0 overflow-hidden rounded-md border">
+            <Table className="min-w-[1040px] table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Startup</TableHead>
-                  <TableHead>Industry</TableHead>
-                  <TableHead>Request</TableHead>
-                  <TableHead>Requirements</TableHead>
-                  <TableHead>Founder</TableHead>
-                  <TableHead>Commitment</TableHead>
+                  <TableHead className="w-[24%] whitespace-normal">Startup</TableHead>
+                  <TableHead className="w-[13%] whitespace-normal">Industry</TableHead>
+                  <TableHead className="w-[10%] whitespace-normal">Request</TableHead>
+                  <TableHead className="w-[21%] whitespace-normal">Requirements</TableHead>
+                  <TableHead className="w-[12%] whitespace-normal">Founder</TableHead>
+                  <TableHead className="w-[20%] whitespace-normal">Commitment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -271,22 +271,26 @@ export function InvestorMarketplacePanel() {
 
                   return (
                     <TableRow key={startup.id}>
-                      <TableCell>
+                      <TableCell className="whitespace-normal align-top">
                         <div className="font-medium">{startup.name}</div>
-                        <div className="text-xs text-muted-foreground">{startup.summary}</div>
+                        <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                          {startup.summary}
+                        </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-normal align-top">
                         <div>{startup.industry}</div>
                         <div className="text-xs text-muted-foreground">{startup.stage}</div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-normal align-top">
                         {startup.requestedAmount} {startup.currency}
                       </TableCell>
-                      <TableCell>{startup.requirements}</TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="whitespace-normal align-top text-muted-foreground [overflow-wrap:anywhere]">
+                        {startup.requirements}
+                      </TableCell>
+                      <TableCell className="whitespace-normal align-top font-mono text-xs [overflow-wrap:anywhere]">
                         {shortWallet(startup.founderWallet)}
                       </TableCell>
-                      <TableCell className="min-w-64">
+                      <TableCell className="whitespace-normal align-top">
                         <div className="grid gap-2">
                           <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-2">
                             <Input
@@ -341,11 +345,11 @@ export function InvestorMarketplacePanel() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <h2 className="text-base font-semibold">My investment pools</h2>
           <div className="flex flex-col gap-3">
             {pools.map((pool) => (
-              <div className="rounded-md border p-4" key={pool.id}>
+              <div className="min-w-0 rounded-md border p-4" key={pool.id}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-medium">{pool.name}</div>
                   <div className="flex gap-2">
@@ -353,14 +357,16 @@ export function InvestorMarketplacePanel() {
                     <Badge>{pool.status}</Badge>
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">{pool.thesis}</p>
+                <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                  {pool.thesis}
+                </p>
                 <div className="mt-3 grid gap-2 text-sm">
                   <div>{pool.targetIndustry}</div>
-                  <div>{pool.stages}</div>
+                  <div className="[overflow-wrap:anywhere]">{pool.stages}</div>
                   <div>
                     {pool.totalAmount} {pool.currency}
                   </div>
-                  <div>{pool.requirements}</div>
+                  <div className="[overflow-wrap:anywhere]">{pool.requirements}</div>
                 </div>
               </div>
             ))}
@@ -373,14 +379,16 @@ export function InvestorMarketplacePanel() {
           <h2 className="mt-3 text-base font-semibold">My commitments</h2>
           <div className="flex flex-col gap-3">
             {commitments.map((commitment) => (
-              <div className="rounded-md border p-4" key={commitment.id}>
+              <div className="min-w-0 rounded-md border p-4" key={commitment.id}>
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     {commitment.amount} {commitment.currency}
                   </div>
                   <Badge variant="secondary">{commitment.status}</Badge>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">{commitment.note}</p>
+                <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                  {commitment.note}
+                </p>
               </div>
             ))}
             {commitments.length === 0 ? (

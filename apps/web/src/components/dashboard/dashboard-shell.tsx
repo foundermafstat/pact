@@ -119,6 +119,12 @@ const navSections: Array<{
     label: "Administration",
     items: [
       {
+        href: "/dashboard/admin/marketplace",
+        label: "Marketplace",
+        roles: ["Admin"],
+        icon: WalletCardsIcon
+      },
+      {
         href: "/dashboard/admin/rbac",
         label: "RBAC",
         roles: ["Admin"],
@@ -188,6 +194,27 @@ function navItemMatchesMode(item: NavItem, mode: AdminPanelMode) {
     return item.href.startsWith("/dashboard/startup");
   }
   return item.href.startsWith("/dashboard/investor");
+}
+
+function resolveActiveMode(
+  pathname: string,
+  selectedMode: AdminPanelMode,
+  roles: Role[]
+): AdminPanelMode {
+  const routeMode = modeForPathname(pathname);
+  if (routeMode && modeIsAllowed(routeMode, roles)) {
+    return routeMode;
+  }
+  if (modeIsAllowed(selectedMode, roles)) {
+    return selectedMode;
+  }
+  if (roles.includes("Project")) {
+    return "startup";
+  }
+  if (hasInvestorWorkspace(roles)) {
+    return "investor";
+  }
+  return roles.includes("Admin") ? "admin" : "startup";
 }
 
 function useDashboardTheme() {
@@ -340,13 +367,7 @@ function DashboardContent({ children }: { children: ReactNode }) {
     return <RoleSelection />;
   }
 
-  const activeMode = user.roles.includes("Admin")
-    ? "admin"
-    : modeIsAllowed(mode, user.roles)
-      ? mode
-      : user.roles.includes("Project")
-        ? "startup"
-        : "investor";
+  const activeMode = resolveActiveMode(pathname, mode, user.roles);
   const visibleSections = navSections
     .map((section) => ({
       ...section,
@@ -493,7 +514,7 @@ function DashboardContent({ children }: { children: ReactNode }) {
             </Button>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 xl:p-8">
+        <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6 xl:p-8">
           {children}
         </div>
       </SidebarInset>

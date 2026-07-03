@@ -127,17 +127,17 @@ export function StartupProfilePanel() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.85fr)]">
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.85fr)]">
       <form
-        className="flex flex-col gap-4"
+        className="flex min-w-0 flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           setError(null);
           startTransition(async () => {
             try {
-            const response = await client.createStartupProfile(form);
-            setProfiles((current) => [response.data, ...current]);
-            setForm(defaultForm);
+              const response = await client.createStartupProfile(form);
+              setProfiles((current) => [response.data, ...current]);
+              setForm(defaultForm);
             } catch (caughtError) {
               setError(
                 caughtError instanceof PactApiClientError
@@ -244,7 +244,7 @@ export function StartupProfilePanel() {
         ) : null}
       </form>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">My startup requests</h2>
           <Button onClick={() => void loadWorkspace()} type="button" variant="outline">
@@ -253,7 +253,7 @@ export function StartupProfilePanel() {
         </div>
         <div className="flex flex-col gap-3">
           {profiles.map((profile) => (
-            <div className="rounded-md border p-4" key={profile.id}>
+            <div className="min-w-0 rounded-md border p-4" key={profile.id}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="font-medium">{profile.name}</div>
@@ -263,13 +263,15 @@ export function StartupProfilePanel() {
                 </div>
                 <Badge variant="secondary">{profile.status}</Badge>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">{profile.summary}</p>
+              <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                {profile.summary}
+              </p>
               <div className="mt-3 grid gap-2 text-sm">
                 <div>{profile.industry} / {profile.stage}</div>
                 <div>
                   {profile.requestedAmount} {profile.currency}
                 </div>
-                <div>{profile.requirements}</div>
+                <div className="[overflow-wrap:anywhere]">{profile.requirements}</div>
               </div>
             </div>
           ))}
@@ -280,9 +282,9 @@ export function StartupProfilePanel() {
           ) : null}
         </div>
       </div>
-      <div className="xl:col-span-2">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.55fr)]">
-          <div className="flex flex-col gap-3">
+      <div className="min-w-0 xl:col-span-2">
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.55fr)]">
+          <div className="flex min-w-0 flex-col gap-3">
             <h2 className="text-base font-semibold">Available pools and grants</h2>
             <div className="grid gap-3 md:grid-cols-2">
               {pools.map((pool) => {
@@ -290,19 +292,21 @@ export function StartupProfilePanel() {
                   applicationInputs[pool.id]?.startupProfileId ?? profiles[0]?.id ?? "";
 
                 return (
-                  <div className="rounded-md border p-4" key={pool.id}>
+                  <div className="min-w-0 rounded-md border p-4" key={pool.id}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-medium">{pool.name}</div>
                       <Badge variant="secondary">{pool.poolType}</Badge>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">{pool.thesis}</p>
+                    <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                      {pool.thesis}
+                    </p>
                     <div className="mt-3 grid gap-2 text-sm">
                       <div>{pool.targetIndustry}</div>
-                      <div>{pool.stages}</div>
+                      <div className="[overflow-wrap:anywhere]">{pool.stages}</div>
                       <div>
                         {pool.totalAmount} {pool.currency}
                       </div>
-                      <div>{pool.requirements}</div>
+                      <div className="[overflow-wrap:anywhere]">{pool.requirements}</div>
                     </div>
                     <div className="mt-4 grid gap-3">
                       <Select
@@ -348,18 +352,20 @@ export function StartupProfilePanel() {
               ) : null}
             </div>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <h2 className="text-base font-semibold">My applications</h2>
             <div className="flex flex-col gap-3">
               {applications.map((application) => (
-                <div className="rounded-md border p-4" key={application.id}>
+                <div className="min-w-0 rounded-md border p-4" key={application.id}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-mono text-xs">
                       {application.investmentPoolId.slice(0, 8)}
                     </div>
                     <Badge variant="secondary">{application.status}</Badge>
                   </div>
-                  <p className="mt-3 text-sm text-muted-foreground">{application.note}</p>
+                  <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    {application.note}
+                  </p>
                 </div>
               ))}
               {applications.length === 0 ? (
