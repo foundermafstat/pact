@@ -25,14 +25,14 @@ export const registerProgramRoutes = async (app: FastifyInstance): Promise<void>
     }
 
     return {
-      data: programService.createProgram(body)
+      data: await programService.createProgram(body)
     };
   });
 
   app.get<{ Params: { programId: string } }>(
     "/api/programs/:programId",
     async (request) => {
-      const record = programService.getProgram(request.params.programId);
+      const record = await programService.getProgram(request.params.programId);
       if (!record) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }
@@ -46,13 +46,13 @@ export const registerProgramRoutes = async (app: FastifyInstance): Promise<void>
     "/api/programs/:programId/fund",
     async (request) => {
       const body = FundProgramRequestSchema.parse(request.body);
-      const currentRecord = programService.getProgram(request.params.programId);
+      const currentRecord = await programService.getProgram(request.params.programId);
       if (!currentRecord) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }
       await requireProgramAccess(request, currentRecord.program, "investor");
 
-      const record = programService.fundProgram(request.params.programId, body.amount);
+      const record = await programService.fundProgram(request.params.programId, body.amount);
       if (!record) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }
@@ -64,13 +64,13 @@ export const registerProgramRoutes = async (app: FastifyInstance): Promise<void>
   app.post<{ Params: { programId: string } }>(
     "/api/programs/:programId/activate",
     async (request) => {
-      const currentRecord = programService.getProgram(request.params.programId);
+      const currentRecord = await programService.getProgram(request.params.programId);
       if (!currentRecord) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }
       await requireProgramAccess(request, currentRecord.program, "investor");
 
-      const record = programService.activateProgram(request.params.programId);
+      const record = await programService.activateProgram(request.params.programId);
       if (!record) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }
@@ -82,7 +82,7 @@ export const registerProgramRoutes = async (app: FastifyInstance): Promise<void>
   app.get<{ Params: { programId: string } }>(
     "/api/programs/:programId/audit",
     async (request) => {
-      const audit = publicAuditService.getProgramAudit(request.params.programId);
+      const audit = await publicAuditService.getProgramAudit(request.params.programId);
       if (!audit) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }

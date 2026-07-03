@@ -19,7 +19,11 @@ describe("domain constants", () => {
     expect(ROOT_STATUSES).toContain("Inactive");
     expect(PROGRAM_STATUSES).toContain("Paused");
     expect(TRANCHE_STATUSES).toContain("Released");
-    expect(PROOF_TYPES).toEqual(["Eligibility", "MilestoneUnlock"]);
+    expect(PROOF_TYPES).toEqual([
+      "Eligibility",
+      "MilestoneUnlock",
+      "PaymentRevenueThreshold"
+    ]);
     expect(ROLES).toEqual([
       "Sponsor",
       "Project",

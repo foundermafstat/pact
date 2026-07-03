@@ -9,8 +9,8 @@ describe("PublicAuditService", () => {
     publicAuditService.reset();
   });
 
-  it("projects public program audit timeline without private fields", () => {
-    const record = programService.createProgram({
+  it("projects public program audit timeline without private fields", async () => {
+    const record = await programService.createProgram({
       programKey: "PACT-DEMO-AUDIT",
       sponsorWallet: "GSPONSOR",
       projectWallet: "GPROJECT",
@@ -42,7 +42,7 @@ describe("PublicAuditService", () => {
       createdAt: "2026-01-01T00:00:00.000Z"
     });
 
-    const audit = publicAuditService.getProgramAudit(record.program.id);
+    const audit = await publicAuditService.getProgramAudit(record.program.id);
 
     expect(audit?.timeline.map((item) => item.type)).toContain("released");
     expect(JSON.stringify(audit)).toContain("releasedAmount");

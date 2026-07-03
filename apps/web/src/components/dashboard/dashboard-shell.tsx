@@ -59,6 +59,10 @@ import {
   SidebarTrigger
 } from "@/components/ui/sidebar";
 import { webEnv } from "@/config/env";
+import {
+  type AdminPanelMode,
+  useAdminPanelStore
+} from "@/stores/admin-panel-store";
 
 type NavItem = {
   href: string;
@@ -142,22 +146,48 @@ function hasInvestorWorkspace(roles: Role[]) {
   return roles.includes("Investor") || roles.includes("Sponsor");
 }
 
-function hasWorkspaceRole(roles: Role[]) {
-  return hasInvestorWorkspace(roles) || roles.includes("Project");
-}
-
 function workspaceHref(role: WorkspaceRole) {
   return role === "Project" ? "/dashboard/startup" : "/dashboard/investor";
 }
 
-function selectedWorkspaceRole(pathname: string, roles: Role[]): WorkspaceRole {
+function modeHref(mode: AdminPanelMode) {
+  if (mode === "admin") {
+    return "/dashboard/admin/rbac";
+  }
+  return mode === "startup" ? "/dashboard/startup" : "/dashboard/investor";
+}
+
+function modeForPathname(pathname: string): AdminPanelMode | undefined {
+  if (pathname.startsWith("/dashboard/admin")) {
+    return "admin";
+  }
   if (pathname.startsWith("/dashboard/startup")) {
-    return "Project";
+    return "startup";
   }
   if (pathname.startsWith("/dashboard/investor")) {
-    return "Investor";
+    return "investor";
   }
-  return roles.includes("Project") ? "Project" : "Investor";
+  return undefined;
+}
+
+function modeIsAllowed(mode: AdminPanelMode, roles: Role[]) {
+  if (mode === "admin") {
+    return roles.includes("Admin");
+  }
+  if (mode === "startup") {
+    return roles.includes("Admin") || roles.includes("Project");
+  }
+  return roles.includes("Admin") || hasInvestorWorkspace(roles);
+}
+
+function navItemMatchesMode(item: NavItem, mode: AdminPanelMode) {
+  if (mode === "admin") {
+    return true;
+  }
+  if (mode === "startup") {
+    return item.href.startsWith("/dashboard/startup");
+  }
+  return item.href.startsWith("/dashboard/investor");
 }
 
 function useDashboardTheme() {
@@ -235,21 +265,30 @@ function WorkspaceSwitcher({
 }) {
   const router = useRouter();
   const { isLoading, selectRole } = useAuth();
-  const value = selectedWorkspaceRole(pathname, roles);
+  const { mode, setMode } = useAdminPanelStore();
+  const value = modeForPathname(pathname) ?? mode;
 
-  const changeWorkspace = async (nextRole: WorkspaceRole) => {
-    const alreadyAllowed =
-      nextRole === "Investor" ? hasInvestorWorkspace(roles) : roles.includes("Project");
-    const selected = alreadyAllowed || (await selectRole(nextRole));
+  const changeWorkspace = async (nextMode: AdminPanelMode) => {
+    if (nextMode === "admin") {
+      if (roles.includes("Admin")) {
+        setMode("admin");
+        router.push(modeHref("admin"));
+      }
+      return;
+    }
+
+    const nextRole: WorkspaceRole = nextMode === "startup" ? "Project" : "Investor";
+    const selected = modeIsAllowed(nextMode, roles) || (await selectRole(nextRole));
     if (selected) {
-      router.push(workspaceHref(nextRole));
+      setMode(nextMode);
+      router.push(modeHref(nextMode));
     }
   };
 
   return (
     <Select
       disabled={isLoading}
-      onValueChange={(nextRole) => void changeWorkspace(nextRole as WorkspaceRole)}
+      onValueChange={(nextMode) => void changeWorkspace(nextMode as AdminPanelMode)}
       value={value}
     >
       <SelectTrigger aria-label="Workspace type" className="hidden w-56 md:flex">
@@ -257,8 +296,9 @@ function WorkspaceSwitcher({
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          <SelectItem value="Investor">Investor</SelectItem>
-          <SelectItem value="Project">Startup representative</SelectItem>
+          <SelectItem value="startup">Startup representative</SelectItem>
+          <SelectItem value="investor">Investor</SelectItem>
+          {roles.includes("Admin") ? <SelectItem value="admin">Admin</SelectItem> : null}
         </SelectGroup>
       </SelectContent>
     </Select>
@@ -268,6 +308,17 @@ function WorkspaceSwitcher({
 function DashboardContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const { mode, setMode } = useAdminPanelStore();
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    const routeMode = modeForPathname(pathname);
+    if (routeMode && modeIsAllowed(routeMode, user.roles)) {
+      setMode(routeMode);
+    }
+  }, [pathname, setMode, user]);
 
   if (isLoading) {
     return (
@@ -285,14 +336,23 @@ function DashboardContent({ children }: { children: ReactNode }) {
     );
   }
 
-  if (user.roles.length === 0 || (user.roles.includes("Admin") && !hasWorkspaceRole(user.roles))) {
+  if (user.roles.length === 0) {
     return <RoleSelection />;
   }
 
+  const activeMode = user.roles.includes("Admin")
+    ? "admin"
+    : modeIsAllowed(mode, user.roles)
+      ? mode
+      : user.roles.includes("Project")
+        ? "startup"
+        : "investor";
   const visibleSections = navSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => roleAllows(user.roles, item.roles))
+      items: section.items.filter(
+        (item) => roleAllows(user.roles, item.roles) && navItemMatchesMode(item, activeMode)
+      )
     }))
     .filter((section) => section.items.length > 0);
   const activeItem = visibleSections

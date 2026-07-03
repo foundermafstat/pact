@@ -11,7 +11,7 @@ import type { ProofJobPayload, ProofProcessorResult } from "./proof-processor";
 const execFileAsync = promisify(execFile);
 
 type CircuitConfig = {
-  pipelineName: "eligibility" | "milestone";
+  pipelineName: "eligibility" | "milestone" | "payment-revenue";
   buildDir: string;
 };
 
@@ -41,6 +41,13 @@ const getCircuitConfig = (proofType: ProofType, repoRoot: string): CircuitConfig
     return {
       pipelineName: "eligibility",
       buildDir: join(repoRoot, "circuits", "eligibility-proof", "build")
+    };
+  }
+
+  if (proofType === "PaymentRevenueThreshold") {
+    return {
+      pipelineName: "payment-revenue",
+      buildDir: join(repoRoot, "circuits", "payment-revenue-threshold-proof", "build")
     };
   }
 

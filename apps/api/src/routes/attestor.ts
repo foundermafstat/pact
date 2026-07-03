@@ -54,7 +54,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
   app.get<{ Params: { programId: string; milestoneId: string } }>(
     "/api/attestor/programs/:programId/milestones/:milestoneId",
     async (request) => {
-      const record = programService.getProgram(request.params.programId);
+      const record = await programService.getProgram(request.params.programId);
       if (!record) {
         throw new ApiError(404, "program_not_found", "Program was not found");
       }

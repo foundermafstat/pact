@@ -4,7 +4,9 @@ import {
   EligibilityPrivateInputSchema,
   EligibilityPublicInputSchema,
   MilestonePrivateInputSchema,
-  MilestonePublicInputSchema
+  MilestonePublicInputSchema,
+  PaymentRevenuePrivateInputSchema,
+  PaymentRevenuePublicInputSchema
 } from "../src/circuit-io";
 
 const merklePath = {
@@ -101,5 +103,37 @@ describe("circuit input schemas", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts valid payment revenue private/public inputs", () => {
+    expect(
+      PaymentRevenuePrivateInputSchema.parse({
+        connectorSecret: "0x10",
+        snapshotSalt: "0x11",
+        netRevenueCents: "1000000",
+        grossPaidCents: "1200000",
+        refundCents: "100000",
+        feeCents: "100000",
+        successfulChargeCount: 12,
+        sourceRefSalts: ["0x12"]
+      })
+    ).toBeDefined();
+
+    expect(
+      PaymentRevenuePublicInputSchema.parse({
+        policyHash: "0xabc1",
+        snapshotCommitment: "0xabc2",
+        sourceRefsCommitment: "0xabc3",
+        connectedAccountHash: "0xabc4",
+        programId: "program-1",
+        milestoneId: "M1",
+        thresholdCents: "1000000",
+        currencyCode: "usd",
+        periodStartEpoch: 1780000000,
+        periodEndEpoch: 1782600000,
+        currentEpoch: 1781000000,
+        nullifier: "0xabc5"
+      })
+    ).toBeDefined();
   });
 });

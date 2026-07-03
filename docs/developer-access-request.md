@@ -67,6 +67,25 @@ Public frontend mirrors:
 | `ENCRYPTION_KEY_BASE64` | implementation operator | yes | private evidence encryption |
 | `CORS_ORIGIN` | deployment operator | yes | API browser access control |
 
+## Stripe revenue proof
+
+| Variable | Owner | Required | Used by |
+|---|---|---:|---|
+| `STRIPE_API_VERSION` | implementation operator | yes | Stripe REST calls |
+| `STRIPE_TEST_MODE` | implementation operator | yes | rejects live connected accounts in MVP |
+| `STRIPE_SECRET_KEY` | Pact platform operator | yes | platform test key for OAuth exchange and connected-account reads |
+| `STRIPE_CONNECT_CLIENT_ID` | Pact platform operator | yes | Connect OAuth authorize URL |
+| `STRIPE_OAUTH_REDIRECT_URI` | Pact platform operator | yes | registered Stripe OAuth callback |
+| `STRIPE_WEBHOOK_SECRET` | Pact platform operator | required for webhook evidence | webhook signature verification |
+| `STRIPE_OAUTH_STATE_SECRET` | implementation operator | yes | OAuth state HMAC |
+| `PAYMENT_PROOF_ENCRYPTION_KEY` | implementation operator | yes | encrypted private revenue metrics and source refs |
+| `PUBLIC_API_BASE_URL` | deployment operator | yes | public API links |
+| `WEB_PUBLIC_API_BASE_URL` | deployment operator | yes | browser-facing callback/reference URL |
+| `PROVER_URL` | deployment operator | yes | prover service URL |
+| `STRIPE_REAL_CONNECTED_ACCOUNT_ID` | local test operator | optional | real Stripe integration test only |
+
+Startup-owned Stripe dashboard credentials and startup secret API keys are not required.
+
 ## Mock issuer and attestor
 
 | Variable | Owner | Required | Used by |
@@ -87,6 +106,9 @@ Public frontend mirrors:
 | `MILESTONE_CIRCUIT_WASM_PATH` | ZK build output | yes | milestone witness generation |
 | `MILESTONE_ZKEY_PATH` | ZK build output | yes | milestone proof generation |
 | `MILESTONE_VKEY_PATH` | ZK build output | yes | milestone verification |
+| `PAYMENT_REVENUE_CIRCUIT_WASM_PATH` | ZK build output | yes | payment revenue witness generation |
+| `PAYMENT_REVENUE_ZKEY_PATH` | ZK build output | yes | payment revenue proof generation |
+| `PAYMENT_REVENUE_VKEY_PATH` | ZK build output | yes | payment revenue verification |
 
 ## Indexer and deployment
 

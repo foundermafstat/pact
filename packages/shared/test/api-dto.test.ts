@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   CreateMilestoneEvidenceRequestSchema,
+  CreateStripeRevenueSnapshotRequestSchema,
   CreateProgramRequestSchema,
+  GenerateStripeRevenueProofRequestSchema,
   MilestoneAttestationDtoSchema,
   ProgramDtoSchema,
-  ProofJobDtoSchema
+  ProofJobDtoSchema,
+  StripeConnectionStatusDtoSchema,
+  StripeRevenueSnapshotDtoSchema
 } from "../src/api-dto";
 
 const id = "11111111-1111-4111-8111-111111111111";
@@ -86,6 +90,60 @@ describe("API DTO schemas", () => {
         error: null,
         createdAt: timestamp,
         completedAt: null
+      })
+    ).toBeDefined();
+  });
+
+  it("accepts Stripe revenue proof DTOs", () => {
+    expect(
+      StripeConnectionStatusDtoSchema.parse({
+        source: "stripe",
+        mode: "test",
+        programId: id,
+        status: "connected",
+        connectedAccountHash: "0xabc1",
+        livemode: false,
+        scope: "read_write",
+        connectedAt: timestamp,
+        deauthorizedAt: null,
+        updatedAt: timestamp
+      })
+    ).toBeDefined();
+
+    expect(
+      CreateStripeRevenueSnapshotRequestSchema.parse({
+        programId: id,
+        periodStart: "2026-07-01",
+        periodEnd: "2026-08-01",
+        currency: "usd",
+        thresholdCents: "1000000"
+      })
+    ).toBeDefined();
+
+    expect(
+      StripeRevenueSnapshotDtoSchema.parse({
+        id,
+        programId: id,
+        source: "stripe",
+        mode: "test",
+        connectedAccountHash: "0xabc1",
+        periodStart: timestamp,
+        periodEnd: "2026-08-01T00:00:00.000Z",
+        currency: "usd",
+        thresholdCents: "1000000",
+        policyHash: "0xabc2",
+        snapshotCommitment: "0xabc3",
+        sourceRefsCommitment: "0xabc4",
+        generatedAt: timestamp,
+        status: "Generated",
+        thresholdPassed: true
+      })
+    ).toBeDefined();
+
+    expect(
+      GenerateStripeRevenueProofRequestSchema.parse({
+        snapshotId: id,
+        milestoneId: "M1"
       })
     ).toBeDefined();
   });

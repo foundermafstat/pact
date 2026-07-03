@@ -15,5 +15,8 @@ export { buildMerkleTree, sha256PairHash } from "./merkle";
 export type { HashFunction, MerkleProof, MerkleTree } from "./merkle";
 export {
   formatEligibilityPublicInputs,
-  formatMilestonePublicInputs
+  formatMilestonePublicInputs,
+  formatPaymentRevenuePublicInputs,
+  hexToFieldString,
+  stringToFieldString
 } from "./public-inputs";

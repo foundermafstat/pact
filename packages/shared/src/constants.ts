@@ -22,8 +22,46 @@ export type ProgramStatus = (typeof PROGRAM_STATUSES)[number];
 export const TRANCHE_STATUSES = ["Locked", "Ready", "Released", "Cancelled"] as const;
 export type TrancheStatus = (typeof TRANCHE_STATUSES)[number];
 
-export const PROOF_TYPES = ["Eligibility", "MilestoneUnlock"] as const;
+export const PROOF_TYPES = [
+  "Eligibility",
+  "MilestoneUnlock",
+  "PaymentRevenueThreshold"
+] as const;
 export type ProofType = (typeof PROOF_TYPES)[number];
+
+export const STARTUP_PROFILE_STATUSES = [
+  "Draft",
+  "Submitted",
+  "Listed",
+  "Archived"
+] as const;
+export type StartupProfileStatus = (typeof STARTUP_PROFILE_STATUSES)[number];
+
+export const INVESTMENT_POOL_TYPES = ["Investment", "Grant"] as const;
+export type InvestmentPoolType = (typeof INVESTMENT_POOL_TYPES)[number];
+
+export const INVESTMENT_POOL_STATUSES = [
+  "Draft",
+  "Open",
+  "Closed",
+  "Archived"
+] as const;
+export type InvestmentPoolStatus = (typeof INVESTMENT_POOL_STATUSES)[number];
+
+export const POOL_APPLICATION_STATUSES = [
+  "Submitted",
+  "Reviewed",
+  "Accepted",
+  "Rejected"
+] as const;
+export type PoolApplicationStatus = (typeof POOL_APPLICATION_STATUSES)[number];
+
+export const INVESTMENT_COMMITMENT_STATUSES = [
+  "Pending",
+  "Accepted",
+  "Declined"
+] as const;
+export type InvestmentCommitmentStatus = (typeof INVESTMENT_COMMITMENT_STATUSES)[number];
 
 export const ROLES = [
   "Sponsor",

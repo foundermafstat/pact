@@ -63,6 +63,7 @@ enum MilestoneAttestationStatus {
 enum ProofType {
   Eligibility
   MilestoneUnlock
+  PaymentRevenueThreshold
 }
 
 enum ProofJobStatus {
@@ -70,6 +71,38 @@ enum ProofJobStatus {
   Running
   Succeeded
   Failed
+}
+
+enum StartupProfileStatus {
+  Draft
+  Submitted
+  Listed
+  Archived
+}
+
+enum InvestmentPoolType {
+  Investment
+  Grant
+}
+
+enum InvestmentPoolStatus {
+  Draft
+  Open
+  Closed
+  Archived
+}
+
+enum PoolApplicationStatus {
+  Submitted
+  Reviewed
+  Accepted
+  Rejected
+}
+
+enum InvestmentCommitmentStatus {
+  Pending
+  Accepted
+  Declined
 }
 
 enum AccountRole {
@@ -91,6 +124,10 @@ model WalletAccount {
   roles      WalletRole[]
   sessions   AuthSession[]
   challenges AuthChallenge[]
+  startupProfiles StartupProfile[]
+  investmentPools InvestmentPool[]
+  startupPoolApplications StartupPoolApplication[]
+  investmentCommitments InvestmentCommitment[]
 
   @@map("wallet_accounts")
 }
@@ -142,6 +179,94 @@ model AuthSession {
   @@map("auth_sessions")
 }
 
+model StartupProfile {
+  id              String               @id @default(uuid()) @db.Uuid
+  founderWallet   String               @map("founder_wallet")
+  name            String
+  summary         String
+  industry        String
+  stage           String
+  website         String?
+  requestedAmount Decimal              @map("requested_amount")
+  currency        String               @default("USDC")
+  fundingUse      String               @map("funding_use")
+  requirements    String
+  traction        String
+  status          StartupProfileStatus @default(Submitted)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  founder WalletAccount @relation(fields: [founderWallet], references: [wallet], onDelete: Cascade)
+  poolApplications StartupPoolApplication[]
+  investmentCommitments InvestmentCommitment[]
+
+  @@index([founderWallet, createdAt])
+  @@index([status, createdAt])
+  @@map("startup_profiles")
+}
+
+model InvestmentPool {
+  id              String               @id @default(uuid()) @db.Uuid
+  ownerWallet     String               @map("owner_wallet")
+  name            String
+  poolType        InvestmentPoolType   @map("pool_type")
+  thesis          String
+  targetIndustry  String               @map("target_industry")
+  stages          String               @default("")
+  totalAmount     Decimal              @map("total_amount")
+  currency        String               @default("USDC")
+  requirements    String
+  status          InvestmentPoolStatus @default(Open)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  owner WalletAccount @relation(fields: [ownerWallet], references: [wallet], onDelete: Cascade)
+  applications StartupPoolApplication[]
+
+  @@index([ownerWallet, createdAt])
+  @@index([status, poolType, createdAt])
+  @@map("investment_pools")
+}
+
+model StartupPoolApplication {
+  id               String                @id @default(uuid()) @db.Uuid
+  founderWallet    String                @map("founder_wallet")
+  startupProfileId String                @map("startup_profile_id") @db.Uuid
+  investmentPoolId String                @map("investment_pool_id") @db.Uuid
+  note             String
+  status           PoolApplicationStatus @default(Submitted)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  founder WalletAccount @relation(fields: [founderWallet], references: [wallet], onDelete: Cascade)
+  startupProfile StartupProfile @relation(fields: [startupProfileId], references: [id], onDelete: Cascade)
+  investmentPool InvestmentPool @relation(fields: [investmentPoolId], references: [id], onDelete: Cascade)
+
+  @@unique([startupProfileId, investmentPoolId])
+  @@index([founderWallet, createdAt])
+  @@index([investmentPoolId, status])
+  @@map("startup_pool_applications")
+}
+
+model InvestmentCommitment {
+  id               String                     @id @default(uuid()) @db.Uuid
+  investorWallet   String                     @map("investor_wallet")
+  startupProfileId String                     @map("startup_profile_id") @db.Uuid
+  amount           Decimal
+  currency         String                     @default("USDC")
+  note             String
+  status           InvestmentCommitmentStatus @default(Pending)
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+
+  investor WalletAccount @relation(fields: [investorWallet], references: [wallet], onDelete: Cascade)
+  startupProfile StartupProfile @relation(fields: [startupProfileId], references: [id], onDelete: Cascade)
+
+  @@index([investorWallet, createdAt])
+  @@index([startupProfileId, status])
+  @@map("investment_commitments")
+}
+
 model Program {
   id                  String   @id @default(uuid()) @db.Uuid
   programKey          String   @unique @map("program_key")
@@ -157,6 +282,9 @@ model Program {
 
   tranches              Tranche[]
   milestoneAttestations MilestoneAttestation[]
+  stripeOAuthStates     StripeOAuthState[]
+  stripeConnections     StripeConnection[]
+  paymentRevenueSnapshots PaymentRevenueSnapshot[]
 
   @@map("programs")
 }
@@ -257,6 +385,81 @@ model ProofJob {
 
   @@index([proofType, status])
   @@map("proof_jobs")
+}
+
+model StripeConnection {
+  id                String    @id @default(uuid()) @db.Uuid
+  programId         String    @map("program_id") @db.Uuid
+  stripeAccountId   String    @map("stripe_account_id")
+  stripeAccountHash String    @map("stripe_account_hash")
+  livemode          Boolean
+  scope             String
+  status            String
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deauthorizedAt    DateTime? @map("deauthorized_at")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  snapshots PaymentRevenueSnapshot[]
+
+  @@index([programId, status])
+  @@map("stripe_connections")
+}
+
+model StripeOAuthState {
+  id          String    @id @default(uuid()) @db.Uuid
+  stateHash   String    @unique @map("state_hash")
+  programId   String    @map("program_id") @db.Uuid
+  redirectUri String    @map("redirect_uri")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, expiresAt])
+  @@map("stripe_oauth_states")
+}
+
+model PaymentRevenueSnapshot {
+  id                             String   @id @default(uuid()) @db.Uuid
+  programId                      String   @map("program_id") @db.Uuid
+  stripeConnectionId             String   @map("stripe_connection_id") @db.Uuid
+  periodStart                    DateTime @map("period_start")
+  periodEnd                      DateTime @map("period_end")
+  currency                       String
+  thresholdCents                 Decimal  @map("threshold_cents")
+  grossPaidCentsEncrypted        String   @map("gross_paid_cents_encrypted")
+  refundCentsEncrypted           String   @map("refund_cents_encrypted")
+  feeCentsEncrypted              String   @map("fee_cents_encrypted")
+  netRevenueCentsEncrypted       String   @map("net_revenue_cents_encrypted")
+  successfulChargeCountEncrypted String   @map("successful_charge_count_encrypted")
+  snapshotCommitment             String   @map("snapshot_commitment")
+  sourceRefsCommitment           String   @map("source_refs_commitment")
+  rawSourceRefsEncrypted         String   @map("raw_source_refs_encrypted")
+  status                         String
+  generatedAt                    DateTime @default(now()) @map("generated_at")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  stripeConnection StripeConnection @relation(fields: [stripeConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([programId, generatedAt])
+  @@index([stripeConnectionId])
+  @@map("payment_revenue_snapshots")
+}
+
+model StripeWebhookEvent {
+  id              String    @id @default(uuid()) @db.Uuid
+  stripeEventId   String    @unique @map("stripe_event_id")
+  stripeAccountId String?   @map("stripe_account_id")
+  type            String
+  livemode        Boolean
+  payloadHash     String    @map("payload_hash")
+  receivedAt      DateTime  @default(now()) @map("received_at")
+  processedAt     DateTime? @map("processed_at")
+
+  @@index([stripeAccountId, type])
+  @@map("stripe_webhook_events")
 }
 
 model ContractEvent {

@@ -58,9 +58,41 @@ export const MilestonePublicInputSchema = z.object({
   currentEpoch: EpochSchema
 });
 
+export const PaymentRevenuePrivateInputSchema = z.object({
+  connectorSecret: HexStringSchema,
+  snapshotSalt: HexStringSchema,
+  netRevenueCents: z.string().regex(/^[0-9]+$/),
+  grossPaidCents: z.string().regex(/^[0-9]+$/),
+  refundCents: z.string().regex(/^[0-9]+$/),
+  feeCents: z.string().regex(/^[0-9]+$/),
+  successfulChargeCount: z.number().int().nonnegative(),
+  sourceRefSalts: z.array(HexStringSchema)
+});
+
+export const PaymentRevenuePublicInputSchema = z.object({
+  policyHash: HexStringSchema,
+  snapshotCommitment: HexStringSchema,
+  sourceRefsCommitment: HexStringSchema,
+  connectedAccountHash: HexStringSchema,
+  programId: NonEmptyStringSchema,
+  milestoneId: NonEmptyStringSchema,
+  thresholdCents: z.string().regex(/^[0-9]+$/),
+  currencyCode: NonEmptyStringSchema,
+  periodStartEpoch: EpochSchema,
+  periodEndEpoch: EpochSchema,
+  currentEpoch: EpochSchema,
+  nullifier: HexStringSchema
+});
+
 export type EligibilityPrivateInput = z.infer<
   typeof EligibilityPrivateInputSchema
 >;
 export type EligibilityPublicInput = z.infer<typeof EligibilityPublicInputSchema>;
 export type MilestonePrivateInput = z.infer<typeof MilestonePrivateInputSchema>;
 export type MilestonePublicInput = z.infer<typeof MilestonePublicInputSchema>;
+export type PaymentRevenuePrivateInput = z.infer<
+  typeof PaymentRevenuePrivateInputSchema
+>;
+export type PaymentRevenuePublicInput = z.infer<
+  typeof PaymentRevenuePublicInputSchema
+>;

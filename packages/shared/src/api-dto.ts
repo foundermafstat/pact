@@ -1,13 +1,18 @@
 import { z } from "zod";
 
 import {
+  INVESTMENT_COMMITMENT_STATUSES,
+  INVESTMENT_POOL_STATUSES,
+  INVESTMENT_POOL_TYPES,
   POLICY_STATUSES,
   POLICY_TYPES,
+  POOL_APPLICATION_STATUSES,
   PROGRAM_STATUSES,
   PROOF_TYPES,
   ROLES,
   ROOT_STATUSES,
   ROOT_TYPES,
+  STARTUP_PROFILE_STATUSES,
   TRANCHE_STATUSES
 } from "./constants";
 import { HexStringSchema, NonEmptyStringSchema } from "./circuit-io";
@@ -107,6 +112,116 @@ export const ProofJobDtoSchema = z.object({
   completedAt: TimestampSchema.nullable()
 });
 
+export const StripeOAuthStartDtoSchema = z.object({
+  authorizeUrl: z.string().url(),
+  stateExpiresAt: TimestampSchema
+});
+
+export const StripeConnectionStatusDtoSchema = z.object({
+  source: z.literal("stripe"),
+  mode: z.literal("test"),
+  programId: UuidSchema,
+  status: z.enum(["disconnected", "pending", "connected", "deauthorized"]),
+  connectedAccountHash: HexStringSchema.nullable(),
+  livemode: z.boolean().nullable(),
+  scope: NonEmptyStringSchema.nullable(),
+  connectedAt: TimestampSchema.nullable(),
+  deauthorizedAt: TimestampSchema.nullable(),
+  updatedAt: TimestampSchema.nullable()
+});
+
+export const StripeRevenueSnapshotPublicSchema = z.object({
+  source: z.literal("stripe"),
+  mode: z.literal("test"),
+  connectedAccountHash: HexStringSchema,
+  periodStart: TimestampSchema,
+  periodEnd: TimestampSchema,
+  currency: z.string().regex(/^[a-z]{3}$/),
+  thresholdCents: AmountSchema,
+  policyHash: HexStringSchema,
+  snapshotCommitment: HexStringSchema,
+  sourceRefsCommitment: HexStringSchema,
+  generatedAt: TimestampSchema
+});
+
+export const StripeRevenueSnapshotDtoSchema = StripeRevenueSnapshotPublicSchema.extend({
+  id: UuidSchema,
+  programId: UuidSchema,
+  status: z.enum(["Generated"]),
+  thresholdPassed: z.boolean()
+});
+
+export const StartupProfileDtoSchema = z.object({
+  id: UuidSchema,
+  founderWallet: StellarAddressSchema,
+  name: NonEmptyStringSchema,
+  summary: NonEmptyStringSchema,
+  industry: NonEmptyStringSchema,
+  stage: NonEmptyStringSchema,
+  website: z.string().url().nullable(),
+  requestedAmount: AmountSchema,
+  currency: NonEmptyStringSchema,
+  fundingUse: NonEmptyStringSchema,
+  requirements: NonEmptyStringSchema,
+  traction: NonEmptyStringSchema,
+  status: z.enum(STARTUP_PROFILE_STATUSES),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema
+});
+
+export const InvestmentPoolDtoSchema = z.object({
+  id: UuidSchema,
+  ownerWallet: StellarAddressSchema,
+  name: NonEmptyStringSchema,
+  poolType: z.enum(INVESTMENT_POOL_TYPES),
+  thesis: NonEmptyStringSchema,
+  targetIndustry: NonEmptyStringSchema,
+  stages: z.string(),
+  totalAmount: AmountSchema,
+  currency: NonEmptyStringSchema,
+  requirements: NonEmptyStringSchema,
+  status: z.enum(INVESTMENT_POOL_STATUSES),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema
+});
+
+export const StartupPoolApplicationDtoSchema = z.object({
+  id: UuidSchema,
+  founderWallet: StellarAddressSchema,
+  startupProfileId: UuidSchema,
+  investmentPoolId: UuidSchema,
+  note: NonEmptyStringSchema,
+  status: z.enum(POOL_APPLICATION_STATUSES),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema
+});
+
+export const InvestmentCommitmentDtoSchema = z.object({
+  id: UuidSchema,
+  investorWallet: StellarAddressSchema,
+  startupProfileId: UuidSchema,
+  amount: AmountSchema,
+  currency: NonEmptyStringSchema,
+  note: NonEmptyStringSchema,
+  status: z.enum(INVESTMENT_COMMITMENT_STATUSES),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema
+});
+
+export const CreateStripeRevenueSnapshotRequestSchema = z.object({
+  programId: UuidSchema,
+  periodStart: z.string().min(1),
+  periodEnd: z.string().min(1),
+  currency: z.string().regex(/^[a-zA-Z]{3}$/),
+  thresholdCents: AmountSchema,
+  policyHash: HexStringSchema.optional()
+});
+
+export const GenerateStripeRevenueProofRequestSchema = z.object({
+  snapshotId: UuidSchema,
+  milestoneId: NonEmptyStringSchema
+});
+
 export const ContractEventDtoSchema = z.object({
   id: UuidSchema,
   contractId: NonEmptyStringSchema,
@@ -138,6 +253,41 @@ export const CreateProgramRequestSchema = z.object({
 
 export const FundProgramRequestSchema = z.object({
   amount: AmountSchema
+});
+
+export const CreateStartupProfileRequestSchema = z.object({
+  name: NonEmptyStringSchema,
+  summary: NonEmptyStringSchema,
+  industry: NonEmptyStringSchema,
+  stage: NonEmptyStringSchema,
+  website: z.string().url().optional().or(z.literal("")),
+  requestedAmount: AmountSchema,
+  currency: NonEmptyStringSchema.default("USDC"),
+  fundingUse: NonEmptyStringSchema,
+  requirements: NonEmptyStringSchema,
+  traction: NonEmptyStringSchema
+});
+
+export const CreateInvestmentPoolRequestSchema = z.object({
+  name: NonEmptyStringSchema,
+  poolType: z.enum(INVESTMENT_POOL_TYPES),
+  thesis: NonEmptyStringSchema,
+  targetIndustry: NonEmptyStringSchema,
+  stages: NonEmptyStringSchema,
+  totalAmount: AmountSchema,
+  currency: NonEmptyStringSchema.default("USDC"),
+  requirements: NonEmptyStringSchema
+});
+
+export const ApplyToInvestmentPoolRequestSchema = z.object({
+  startupProfileId: UuidSchema,
+  note: NonEmptyStringSchema
+});
+
+export const CreateInvestmentCommitmentRequestSchema = z.object({
+  amount: AmountSchema,
+  currency: NonEmptyStringSchema.default("USDC"),
+  note: NonEmptyStringSchema
 });
 
 export const CreatePolicyRequestSchema = z.object({
@@ -252,9 +402,43 @@ export type MilestoneAttestationDto = z.infer<
   typeof MilestoneAttestationDtoSchema
 >;
 export type ProofJobDto = z.infer<typeof ProofJobDtoSchema>;
+export type StripeOAuthStartDto = z.infer<typeof StripeOAuthStartDtoSchema>;
+export type StripeConnectionStatusDto = z.infer<
+  typeof StripeConnectionStatusDtoSchema
+>;
+export type StripeRevenueSnapshotPublic = z.infer<
+  typeof StripeRevenueSnapshotPublicSchema
+>;
+export type StripeRevenueSnapshotDto = z.infer<
+  typeof StripeRevenueSnapshotDtoSchema
+>;
+export type StartupProfileDto = z.infer<typeof StartupProfileDtoSchema>;
+export type InvestmentPoolDto = z.infer<typeof InvestmentPoolDtoSchema>;
+export type StartupPoolApplicationDto = z.infer<
+  typeof StartupPoolApplicationDtoSchema
+>;
+export type InvestmentCommitmentDto = z.infer<typeof InvestmentCommitmentDtoSchema>;
+export type CreateStripeRevenueSnapshotRequest = z.infer<
+  typeof CreateStripeRevenueSnapshotRequestSchema
+>;
+export type GenerateStripeRevenueProofRequest = z.infer<
+  typeof GenerateStripeRevenueProofRequestSchema
+>;
 export type ContractEventDto = z.infer<typeof ContractEventDtoSchema>;
 export type CreateProgramRequest = z.infer<typeof CreateProgramRequestSchema>;
 export type FundProgramRequest = z.infer<typeof FundProgramRequestSchema>;
+export type CreateStartupProfileRequest = z.infer<
+  typeof CreateStartupProfileRequestSchema
+>;
+export type CreateInvestmentPoolRequest = z.infer<
+  typeof CreateInvestmentPoolRequestSchema
+>;
+export type ApplyToInvestmentPoolRequest = z.infer<
+  typeof ApplyToInvestmentPoolRequestSchema
+>;
+export type CreateInvestmentCommitmentRequest = z.infer<
+  typeof CreateInvestmentCommitmentRequestSchema
+>;
 export type CreatePolicyRequest = z.infer<typeof CreatePolicyRequestSchema>;
 export type CreateMockCredentialRequest = z.infer<
   typeof CreateMockCredentialRequestSchema

@@ -16,6 +16,8 @@ import { PactApiClient } from "@/lib/api-client";
 
 type WalletProvider = "freighter" | "stellar-wallets-kit";
 
+const normalizeWalletAddress = (address: string): string => address.trim().toUpperCase();
+
 type AuthContextValue = {
   user: AuthUserDto | null;
   session: AuthSessionDto | null;
@@ -41,7 +43,7 @@ const readFreighterAddress = async (): Promise<string> => {
     throw new Error(result.error?.message ?? "Freighter access was rejected");
   }
 
-  return result.address;
+  return normalizeWalletAddress(result.address);
 };
 
 const signWithFreighter = async (message: string, address: string): Promise<string> => {
@@ -73,10 +75,11 @@ const readWalletKitAddress = async (): Promise<{
   });
 
   const { address } = await StellarWalletsKit.authModal();
+  const wallet = normalizeWalletAddress(address);
   return {
-    address,
+    address: wallet,
     signMessage: async (message: string) => {
-      const result = await StellarWalletsKit.signMessage(message, { address });
+      const result = await StellarWalletsKit.signMessage(message, { address: wallet });
       if (!result.signedMessage) {
         throw new Error("Selected wallet cannot sign login messages");
       }
@@ -116,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let address: string;
         let signature: string;
         if (provider === "freighter") {
-          address = await readFreighterAddress();
+          address = normalizeWalletAddress(await readFreighterAddress());
           const challenge = await client.createAuthChallenge({
             wallet: address,
             walletProvider: provider
@@ -133,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const walletKit = await readWalletKitAddress();
-        address = walletKit.address;
+        address = normalizeWalletAddress(walletKit.address);
         const challenge = await client.createAuthChallenge({
           wallet: address,
           walletProvider: provider

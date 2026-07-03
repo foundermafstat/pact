@@ -1,0 +1,22 @@
+{
+  "connectorSecret": "11",
+  "snapshotSalt": "13",
+  "netRevenueCents": "10500",
+  "grossPaidCents": "12000",
+  "refundCents": "1000",
+  "feeCents": "500",
+  "successfulChargeCount": "3",
+  "sourceRefSalts": ["17", "18", "19", "20"],
+  "policyHash": "10855",
+  "snapshotCommitment": "10545",
+  "sourceRefsCommitment": "20",
+  "connectedAccountHash": "29",
+  "programId": "7",
+  "milestoneId": "8",
+  "thresholdCents": "10000",
+  "currencyCode": "840",
+  "periodStartEpoch": "100",
+  "periodEndEpoch": "200",
+  "currentEpoch": "150",
+  "nullifier": "284"
+}

@@ -20,8 +20,15 @@ case "$CIRCUIT" in
     FIXTURE="${3:-$CIRCUIT_DIR/fixtures/valid.json}"
     COMPILE_SCRIPT="$ROOT_DIR/circuits/scripts/compile-milestone.sh"
     ;;
+  payment-revenue)
+    CIRCUIT_DIR="$ROOT_DIR/circuits/payment-revenue-threshold-proof"
+    CIRCUIT_FILE="$CIRCUIT_DIR/payment-revenue-threshold-proof.circom"
+    CIRCUIT_NAME="payment-revenue-threshold-proof"
+    FIXTURE="${3:-$CIRCUIT_DIR/fixtures/valid.json}"
+    COMPILE_SCRIPT="$ROOT_DIR/circuits/scripts/compile-payment-revenue.sh"
+    ;;
   *)
-    echo "Usage: $0 eligibility|milestone compile|witness|setup|prove|verify|all [fixture.json]" >&2
+    echo "Usage: $0 eligibility|milestone|payment-revenue compile|witness|setup|prove|verify|all [fixture.json]" >&2
     exit 1
     ;;
 esac

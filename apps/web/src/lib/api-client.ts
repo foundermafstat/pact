@@ -1,4 +1,5 @@
 import {
+  ApplyToInvestmentPoolRequestSchema,
   ApiErrorResponseSchema,
   ApiSuccessResponseSchema,
   AssignWalletRoleRequestSchema,
@@ -6,12 +7,19 @@ import {
   AuthChallengeRequestSchema,
   AuthSessionDtoSchema,
   AuthVerifyRequestSchema,
+  CreateInvestmentCommitmentRequestSchema,
+  CreateInvestmentPoolRequestSchema,
   CreateMilestoneEvidenceRequestSchema,
   CreateMockCredentialRequestSchema,
   CreateProgramRequestSchema,
+  CreateStripeRevenueSnapshotRequestSchema,
+  CreateStartupProfileRequestSchema,
   CredentialDtoSchema,
   FundProgramRequestSchema,
+  GenerateStripeRevenueProofRequestSchema,
   GenerateProofRequestSchema,
+  InvestmentCommitmentDtoSchema,
+  InvestmentPoolDtoSchema,
   MilestoneAttestationDtoSchema,
   ProgramDtoSchema,
   ProofJobDtoSchema,
@@ -19,16 +27,27 @@ import {
   RootDtoSchema,
   RootPublishRequestSchema,
   SelectAccountRoleRequestSchema,
+  StartupProfileDtoSchema,
+  StartupPoolApplicationDtoSchema,
+  StripeConnectionStatusDtoSchema,
+  StripeOAuthStartDtoSchema,
+  StripeRevenueSnapshotDtoSchema,
   SubmitMilestoneProofRequestSchema,
   TrancheDtoSchema,
   WalletRoleDtoSchema,
   type AssignWalletRoleRequest,
+  type ApplyToInvestmentPoolRequest,
   type AuthChallengeRequest,
   type AuthVerifyRequest,
+  type CreateInvestmentCommitmentRequest,
+  type CreateInvestmentPoolRequest,
   type CreateMilestoneEvidenceRequest,
   type CreateMockCredentialRequest,
   type CreateProgramRequest,
+  type CreateStripeRevenueSnapshotRequest,
+  type CreateStartupProfileRequest,
   type FundProgramRequest,
+  type GenerateStripeRevenueProofRequest,
   type GenerateProofRequest,
   type SelectAccountRoleRequest,
   type SubmitMilestoneProofRequest
@@ -159,6 +178,77 @@ export class PactApiClient {
     });
   }
 
+  public createStartupProfile(input: CreateStartupProfileRequest) {
+    return this.request("/api/startups", {
+      method: "POST",
+      body: CreateStartupProfileRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(StartupProfileDtoSchema)
+    });
+  }
+
+  public listMyStartupProfiles() {
+    return this.request("/api/startups/mine", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(StartupProfileDtoSchema.array())
+    });
+  }
+
+  public listStartupProfiles() {
+    return this.request("/api/startups", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(StartupProfileDtoSchema.array())
+    });
+  }
+
+  public createInvestmentPool(input: CreateInvestmentPoolRequest) {
+    return this.request("/api/investment-pools", {
+      method: "POST",
+      body: CreateInvestmentPoolRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(InvestmentPoolDtoSchema)
+    });
+  }
+
+  public listInvestmentPools(scope?: "mine" | "open") {
+    const query = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+    return this.request(`/api/investment-pools${query}`, {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(InvestmentPoolDtoSchema.array())
+    });
+  }
+
+  public applyToInvestmentPool(poolId: string, input: ApplyToInvestmentPoolRequest) {
+    return this.request(`/api/investment-pools/${poolId}/applications`, {
+      method: "POST",
+      body: ApplyToInvestmentPoolRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema)
+    });
+  }
+
+  public listMyPoolApplications() {
+    return this.request("/api/investment-pool-applications/mine", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema.array())
+    });
+  }
+
+  public createInvestmentCommitment(
+    startupId: string,
+    input: CreateInvestmentCommitmentRequest
+  ) {
+    return this.request(`/api/startups/${startupId}/commitments`, {
+      method: "POST",
+      body: CreateInvestmentCommitmentRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(InvestmentCommitmentDtoSchema)
+    });
+  }
+
+  public listMyInvestmentCommitments() {
+    return this.request("/api/investment-commitments/mine", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(InvestmentCommitmentDtoSchema.array())
+    });
+  }
+
   public createProgram(input: CreateProgramRequest) {
     return this.request("/api/programs", {
       method: "POST",
@@ -269,6 +359,51 @@ export class PactApiClient {
 
   public getProof(proofId: string) {
     return this.request(`/api/proofs/${proofId}`, {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(ProofJobDtoSchema)
+    });
+  }
+
+  public getStripeConnectionStatus(programId: string) {
+    return this.request(`/api/integrations/stripe/status?programId=${encodeURIComponent(programId)}`, {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(StripeConnectionStatusDtoSchema)
+    });
+  }
+
+  public startStripeOAuth(programId: string) {
+    return this.request(`/api/integrations/stripe/oauth/start?programId=${encodeURIComponent(programId)}`, {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(StripeOAuthStartDtoSchema)
+    });
+  }
+
+  public disconnectStripe(programId: string) {
+    return this.request("/api/integrations/stripe/disconnect", {
+      method: "POST",
+      body: { programId },
+      schema: ApiSuccessResponseSchema(StripeConnectionStatusDtoSchema)
+    });
+  }
+
+  public createStripeRevenueSnapshot(input: CreateStripeRevenueSnapshotRequest) {
+    return this.request("/api/payment-proofs/stripe/revenue-threshold/snapshot", {
+      method: "POST",
+      body: CreateStripeRevenueSnapshotRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(StripeRevenueSnapshotDtoSchema)
+    });
+  }
+
+  public generateStripeRevenueProof(input: GenerateStripeRevenueProofRequest) {
+    return this.request("/api/payment-proofs/stripe/revenue-threshold/generate", {
+      method: "POST",
+      body: GenerateStripeRevenueProofRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(ProofJobDtoSchema)
+    });
+  }
+
+  public getStripeRevenueProof(proofJobId: string) {
+    return this.request(`/api/payment-proofs/stripe/revenue-threshold/${proofJobId}`, {
       method: "GET",
       schema: ApiSuccessResponseSchema(ProofJobDtoSchema)
     });

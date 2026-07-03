@@ -6,9 +6,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EligibilityPanel } from "@/features/project/eligibility-panel";
-import { MilestonePanel } from "@/features/project/milestone-panel";
+import { StartupProfilePanel } from "@/features/marketplace/startup-profile-panel";
 
 export default function StartupDashboardPage() {
   return (
@@ -17,37 +15,18 @@ export default function StartupDashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold">Startup dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Run private eligibility and milestone proof flows.
+            Place your startup and request investment.
           </p>
         </div>
-        <Tabs defaultValue="eligibility">
-          <TabsList>
-            <TabsTrigger value="eligibility">Eligibility</TabsTrigger>
-            <TabsTrigger value="milestone">Milestone payout</TabsTrigger>
-          </TabsList>
-          <TabsContent value="eligibility">
-            <Card>
-              <CardHeader>
-                <CardTitle>Eligibility proof</CardTitle>
-                <CardDescription>Generate a private KYB eligibility proof.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EligibilityPanel />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="milestone">
-            <Card>
-              <CardHeader>
-                <CardTitle>Milestone unlock</CardTitle>
-                <CardDescription>Generate proof input and submit payout proof.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MilestonePanel />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <Card>
+          <CardHeader>
+            <CardTitle>Startup placement</CardTitle>
+            <CardDescription>Save startup characteristics and investment requirements.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StartupProfilePanel />
+          </CardContent>
+        </Card>
       </div>
     </RoleGate>
   );

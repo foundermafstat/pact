@@ -32,8 +32,8 @@ export class PublicAuditService {
     this.contractEvents.set(programId, [...existingEvents, event]);
   }
 
-  public getProgramAudit(programId: string): ProgramAudit | undefined {
-    const baseAudit = programService.getAudit(programId);
+  public async getProgramAudit(programId: string): Promise<ProgramAudit | undefined> {
+    const baseAudit = await programService.getAudit(programId);
     if (!baseAudit) {
       return undefined;
     }

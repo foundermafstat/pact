@@ -1,8 +1,10 @@
-import { randomUUID } from "node:crypto";
+import type { Program, Tranche } from "@prisma/client";
 
 import type { CreateProgramRequest, ProgramDto, TrancheDto } from "@pact/shared";
 
-type ProgramRecord = {
+import { prisma } from "../db/client";
+
+export type ProgramRecord = {
   program: ProgramDto;
   tranches: TrancheDto[];
 };
@@ -22,113 +24,181 @@ export type ProgramAudit = {
 
 const now = (): string => new Date().toISOString();
 
+const normalizeWallet = (wallet: string): string => wallet.trim().toUpperCase();
+
+const amountToString = (value: { toFixed: (digits?: number) => string }): string =>
+  value.toFixed(0);
+
+const toProgramDto = (program: Program): ProgramDto => ({
+  id: program.id,
+  programKey: program.programKey,
+  sponsorWallet: program.sponsorWallet,
+  projectWallet: program.projectWallet,
+  assetContract: program.assetContract,
+  totalAmount: amountToString(program.totalAmount),
+  fundedAmount: amountToString(program.fundedAmount),
+  status: program.status,
+  eligibilityPolicyId: program.eligibilityPolicyId,
+  createdAt: program.createdAt.toISOString(),
+  updatedAt: program.updatedAt.toISOString()
+});
+
+const toTrancheDto = (tranche: Tranche): TrancheDto => ({
+  id: tranche.id,
+  programId: tranche.programId,
+  milestoneKey: tranche.milestoneKey,
+  milestonePolicyId: tranche.milestonePolicyId,
+  amount: amountToString(tranche.amount),
+  releaseToWallet: tranche.releaseToWallet,
+  status: tranche.status,
+  releasedAt: tranche.releasedAt?.toISOString() ?? null,
+  txHash: tranche.txHash
+});
+
+const toProgramRecord = (input: Program & { tranches: Tranche[] }): ProgramRecord => ({
+  program: toProgramDto(input),
+  tranches: input.tranches.map(toTrancheDto)
+});
+
 export class ProgramService {
-  private readonly programs = new Map<string, ProgramRecord>();
-
   public reset(): void {
-    this.programs.clear();
+    // Test suites that need data cleanup use database truncation.
   }
 
-  public createProgram(input: CreateProgramRequest): ProgramRecord {
-    const createdAt = now();
-    const program: ProgramDto = {
-      id: randomUUID(),
-      programKey: input.programKey,
-      sponsorWallet: input.sponsorWallet,
-      projectWallet: input.projectWallet,
-      assetContract: input.assetContract,
-      totalAmount: input.totalAmount,
-      fundedAmount: "0",
-      status: "Draft",
-      eligibilityPolicyId: input.eligibilityPolicyId,
-      createdAt,
-      updatedAt: createdAt
-    };
+  public async createProgram(input: CreateProgramRequest): Promise<ProgramRecord> {
+    const sponsorWallet = normalizeWallet(input.sponsorWallet);
+    const projectWallet = normalizeWallet(input.projectWallet);
 
-    const tranches = input.tranches.map<TrancheDto>((tranche) => ({
-      id: randomUUID(),
-      programId: program.id,
-      milestoneKey: tranche.milestoneKey,
-      milestonePolicyId: tranche.milestonePolicyId,
-      amount: tranche.amount,
-      releaseToWallet: tranche.releaseToWallet,
-      status: "Locked",
-      releasedAt: null,
-      txHash: null
-    }));
+    const record = await prisma.program.create({
+      data: {
+        programKey: input.programKey.trim(),
+        sponsorWallet,
+        projectWallet,
+        assetContract: input.assetContract.trim(),
+        totalAmount: input.totalAmount,
+        status: "Draft",
+        eligibilityPolicyId: input.eligibilityPolicyId.trim(),
+        tranches: {
+          create: input.tranches.map((tranche) => ({
+            milestoneKey: tranche.milestoneKey.trim(),
+            milestonePolicyId: tranche.milestonePolicyId.trim(),
+            amount: tranche.amount,
+            releaseToWallet: normalizeWallet(tranche.releaseToWallet),
+            status: "Locked"
+          }))
+        }
+      },
+      include: {
+        tranches: {
+          orderBy: { milestoneKey: "asc" }
+        }
+      }
+    });
 
-    const record = { program, tranches };
-    this.programs.set(program.id, record);
-    return record;
+    return toProgramRecord(record);
   }
 
-  public getProgram(programId: string): ProgramRecord | undefined {
-    return this.programs.get(programId);
+  public async getProgram(programId: string): Promise<ProgramRecord | undefined> {
+    const record = await prisma.program.findUnique({
+      where: { id: programId },
+      include: {
+        tranches: {
+          orderBy: { milestoneKey: "asc" }
+        }
+      }
+    });
+
+    return record ? toProgramRecord(record) : undefined;
   }
 
-  public fundProgram(programId: string, amount: string): ProgramRecord | undefined {
-    const record = this.programs.get(programId);
-    if (!record) {
+  public async fundProgram(
+    programId: string,
+    amount: string
+  ): Promise<ProgramRecord | undefined> {
+    return prisma.$transaction(async (tx) => {
+      const current = await tx.program.findUnique({
+        where: { id: programId }
+      });
+      if (!current) {
+        return undefined;
+      }
+
+      const fundedAmount = BigInt(amountToString(current.fundedAmount));
+      const totalAmount = BigInt(amountToString(current.totalAmount));
+      const nextFundedAmount = fundedAmount + BigInt(amount);
+      const cappedAmount = nextFundedAmount > totalAmount ? totalAmount : nextFundedAmount;
+
+      const program = await tx.program.update({
+        where: { id: programId },
+        data: { fundedAmount: cappedAmount.toString() },
+        include: {
+          tranches: {
+            orderBy: { milestoneKey: "asc" }
+          }
+        }
+      });
+
+      return toProgramRecord(program);
+    });
+  }
+
+  public async activateProgram(programId: string): Promise<ProgramRecord | undefined> {
+    const existing = await prisma.program.findUnique({
+      where: { id: programId }
+    });
+    if (!existing) {
       return undefined;
     }
 
-    const nextFundedAmount = BigInt(record.program.fundedAmount) + BigInt(amount);
-    const totalAmount = BigInt(record.program.totalAmount);
-    record.program = {
-      ...record.program,
-      fundedAmount: nextFundedAmount > totalAmount ? totalAmount.toString() : nextFundedAmount.toString(),
-      updatedAt: now()
-    };
+    const program = await prisma.program.update({
+      where: { id: programId },
+      data: { status: "Active" },
+      include: {
+        tranches: {
+          orderBy: { milestoneKey: "asc" }
+        }
+      }
+    });
 
-    return record;
+    return toProgramRecord(program);
   }
 
-  public activateProgram(programId: string): ProgramRecord | undefined {
-    const record = this.programs.get(programId);
-    if (!record) {
-      return undefined;
-    }
-
-    record.program = {
-      ...record.program,
-      status: "Active",
-      updatedAt: now()
-    };
-
-    return record;
-  }
-
-  public releaseTranche(
+  public async releaseTranche(
     programId: string,
     milestoneKey: string,
     txHash: string
-  ): TrancheDto | undefined {
-    const record = this.programs.get(programId);
-    if (!record) {
-      return undefined;
-    }
-
-    const trancheIndex = record.tranches.findIndex(
-      (item) => item.milestoneKey === milestoneKey
-    );
-    const tranche = record.tranches[trancheIndex];
+  ): Promise<TrancheDto | undefined> {
+    const tranche = await prisma.tranche.findUnique({
+      where: {
+        programId_milestoneKey: {
+          programId,
+          milestoneKey
+        }
+      }
+    });
     if (!tranche || tranche.status === "Released") {
       return undefined;
     }
 
-    const releasedTranche: TrancheDto = {
-      ...tranche,
-      status: "Released",
-      releasedAt: now(),
-      txHash
-    };
-    record.tranches[trancheIndex] = releasedTranche;
+    const releasedTranche = await prisma.tranche.update({
+      where: {
+        programId_milestoneKey: {
+          programId,
+          milestoneKey
+        }
+      },
+      data: {
+        status: "Released",
+        releasedAt: new Date(),
+        txHash
+      }
+    });
 
-    return releasedTranche;
+    return toTrancheDto(releasedTranche);
   }
 
-  public getAudit(programId: string): ProgramAudit | undefined {
-    const record = this.programs.get(programId);
+  public async getAudit(programId: string): Promise<ProgramAudit | undefined> {
+    const record = await this.getProgram(programId);
     if (!record) {
       return undefined;
     }
@@ -149,7 +219,7 @@ export class ProgramService {
         {
           type: "EscrowFunded",
           message: "Escrow funding status updated",
-          createdAt: record.program.updatedAt,
+          createdAt: record.program.updatedAt || now(),
           publicFields: {
             fundedAmount: record.program.fundedAmount,
             totalAmount: record.program.totalAmount

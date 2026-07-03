@@ -1,6 +1,7 @@
 export const sharedPackageName = "@pact/shared";
 export {
   AmountSchema,
+  ApplyToInvestmentPoolRequestSchema,
   ApiErrorResponseSchema,
   ApiSuccessResponseSchema,
   AssignWalletRoleRequestSchema,
@@ -10,13 +11,20 @@ export {
   AuthUserDtoSchema,
   AuthVerifyRequestSchema,
   ContractEventDtoSchema,
+  CreateInvestmentCommitmentRequestSchema,
+  CreateInvestmentPoolRequestSchema,
   CreateMilestoneEvidenceRequestSchema,
   CreateMockCredentialRequestSchema,
   CreatePolicyRequestSchema,
   CreateProgramRequestSchema,
+  CreateStripeRevenueSnapshotRequestSchema,
+  CreateStartupProfileRequestSchema,
   CredentialDtoSchema,
   FundProgramRequestSchema,
+  GenerateStripeRevenueProofRequestSchema,
   GenerateProofRequestSchema,
+  InvestmentCommitmentDtoSchema,
+  InvestmentPoolDtoSchema,
   MilestoneAttestationDtoSchema,
   PolicyDtoSchema,
   ProgramDtoSchema,
@@ -27,6 +35,12 @@ export {
   RoleSchema,
   SelectAccountRoleRequestSchema,
   StellarAddressSchema,
+  StartupProfileDtoSchema,
+  StartupPoolApplicationDtoSchema,
+  StripeConnectionStatusDtoSchema,
+  StripeOAuthStartDtoSchema,
+  StripeRevenueSnapshotDtoSchema,
+  StripeRevenueSnapshotPublicSchema,
   SubmitMilestoneProofRequestSchema,
   TimestampSchema,
   TrancheDtoSchema,
@@ -36,36 +50,55 @@ export {
 } from "./api-dto";
 export {
   ACTION_TYPES,
+  INVESTMENT_COMMITMENT_STATUSES,
+  INVESTMENT_POOL_STATUSES,
+  INVESTMENT_POOL_TYPES,
   POLICY_STATUSES,
   POLICY_TYPES,
+  POOL_APPLICATION_STATUSES,
   PROGRAM_STATUSES,
   PROOF_TYPES,
   ROLES,
   ROOT_STATUSES,
   ROOT_TYPES,
+  STARTUP_PROFILE_STATUSES,
   TRANCHE_STATUSES
 } from "./constants";
 export type {
   AssignWalletRoleRequest,
+  ApplyToInvestmentPoolRequest,
   AuthChallengeDto,
   AuthChallengeRequest,
   AuthSessionDto,
   AuthUserDto,
   AuthVerifyRequest,
   ContractEventDto,
+  CreateInvestmentCommitmentRequest,
+  CreateInvestmentPoolRequest,
   CreateMilestoneEvidenceRequest,
   CreateMockCredentialRequest,
   CreatePolicyRequest,
   CreateProgramRequest,
+  CreateStripeRevenueSnapshotRequest,
+  CreateStartupProfileRequest,
   CredentialDto,
   FundProgramRequest,
+  GenerateStripeRevenueProofRequest,
   GenerateProofRequest,
+  InvestmentCommitmentDto,
+  InvestmentPoolDto,
   MilestoneAttestationDto,
   PolicyDto,
   ProgramDto,
   ProofJobDto,
   RootDto,
   SelectAccountRoleRequest,
+  StartupProfileDto,
+  StartupPoolApplicationDto,
+  StripeConnectionStatusDto,
+  StripeOAuthStartDto,
+  StripeRevenueSnapshotDto,
+  StripeRevenueSnapshotPublic,
   SubmitMilestoneProofRequest,
   TrancheDto,
   WalletRoleDto
@@ -79,14 +112,18 @@ export {
   MerklePathSchema,
   MilestonePrivateInputSchema,
   MilestonePublicInputSchema,
-  NonEmptyStringSchema
+  NonEmptyStringSchema,
+  PaymentRevenuePrivateInputSchema,
+  PaymentRevenuePublicInputSchema
 } from "./circuit-io";
 export { canonicalizePolicy, hashPolicy } from "./policy-hash";
 export type {
   EligibilityPrivateInput,
   EligibilityPublicInput,
   MilestonePrivateInput,
-  MilestonePublicInput
+  MilestonePublicInput,
+  PaymentRevenuePrivateInput,
+  PaymentRevenuePublicInput
 } from "./circuit-io";
 export {
   EligibilityPolicySchema,
@@ -98,13 +135,18 @@ export {
 } from "./policy";
 export type {
   ActionType,
+  InvestmentCommitmentStatus,
+  InvestmentPoolStatus,
+  InvestmentPoolType,
   PolicyStatus,
   PolicyType,
+  PoolApplicationStatus,
   ProgramStatus,
   ProofType,
   Role,
   RootStatus,
   RootType,
+  StartupProfileStatus,
   TrancheStatus
 } from "./constants";
 export type { JsonValue } from "./canonical-json";

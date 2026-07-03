@@ -86,7 +86,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const record = programService.getProgram(parsed.data.programId);
+    const record = await programService.getProgram(parsed.data.programId);
     if (!record) {
       throw new ApiError(404, "program_not_found", "Program was not found");
     }
@@ -160,7 +160,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
       );
     }
 
-    const record = programService.getProgram(parsed.data.programId);
+    const record = await programService.getProgram(parsed.data.programId);
     const tranche = record?.tranches.find(
       (item) => item.milestoneKey === parsed.data.milestoneKey
     );
@@ -186,7 +186,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     const txHash = sha256Hex(
       `milestone-submit:${proofJob.id}:${parsed.data.programId}:${parsed.data.milestoneKey}`
     );
-    const releasedTranche = programService.releaseTranche(
+    const releasedTranche = await programService.releaseTranche(
       parsed.data.programId,
       parsed.data.milestoneKey,
       txHash
