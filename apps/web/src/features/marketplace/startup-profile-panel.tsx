@@ -10,6 +10,7 @@ import type {
   StripeRevenueSnapshotDto,
   StartupProfileDto
 } from "@pact/shared";
+import { ExternalLinkIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -48,19 +49,123 @@ const shortWallet = (wallet: string): string =>
 const milestoneKey = (programId: string, milestoneKeyValue: string): string =>
   `${programId}:${milestoneKeyValue}`;
 
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+
+const proofField = (proofJob: ProofJobDto | undefined, key: string): string => {
+  const verification = asRecord(proofJob?.proofJson?.["verification"]);
+  const value = verification?.[key] ?? proofJob?.proofJson?.[key];
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+    ? String(value)
+    : "-";
+};
+
+const explorerTxUrl = (txHash: string): string => {
+  const network = webEnv.stellarNetwork.toLowerCase() === "public" ? "public" : "testnet";
+  return `https://stellar.expert/explorer/${network}/tx/${txHash.replace(/^0x/, "")}`;
+};
+
+function ReceiptRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-md border border-border/70 bg-background/40 p-2">
+      <div className="text-[0.7rem] uppercase text-muted-foreground">{label}</div>
+      <div className="truncate font-mono text-xs">{value || "-"}</div>
+    </div>
+  );
+}
+
+function ProofReceipt({
+  proofJob,
+  releaseTxHash,
+  snapshot,
+  tranche
+}: {
+  proofJob: ProofJobDto | undefined;
+  releaseTxHash: string | undefined;
+  snapshot: StripeRevenueSnapshotDto | undefined;
+  tranche: NonNullable<StartupPoolApplicationDto["tranches"]>[number];
+}) {
+  const txHash = releaseTxHash ?? tranche.txHash ?? "";
+  const proofAccepted =
+    typeof proofJob?.proofJson?.["accepted"] === "boolean"
+      ? proofJob.proofJson["accepted"]
+      : snapshot?.thresholdPassed ?? null;
+  const steps = [
+    { label: "Program", ready: true },
+    { label: "Stripe snapshot", ready: Boolean(snapshot) },
+    { label: "Groth16 proof", ready: proofJob?.status === "Succeeded" },
+    { label: "MRR policy", ready: proofAccepted === true },
+    { label: "Contract release", ready: Boolean(txHash) || tranche.status === "Released" }
+  ];
+
+  return (
+    <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-medium">Guided proof receipt</div>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Judge-facing trace from approved milestone to Stripe MRR proof and smart contract
+            tranche release. Only redacted public inputs and commitments are shown.
+          </p>
+        </div>
+        {txHash ? (
+          <Button asChild size="sm" variant="outline">
+            <a href={explorerTxUrl(txHash)} rel="noreferrer" target="_blank">
+              Explorer <ExternalLinkIcon />
+            </a>
+          </Button>
+        ) : null}
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-5">
+        {steps.map((step, index) => (
+          <div
+            className="rounded-md border bg-background/45 p-2 text-xs"
+            key={step.label}
+          >
+            <div className="text-muted-foreground">Step {index + 1}</div>
+            <div className="mt-1 font-medium">{step.label}</div>
+            <Badge className="mt-2" variant={step.ready ? "default" : "outline"}>
+              {step.ready ? "Ready" : "Waiting"}
+            </Badge>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <ReceiptRow label="Program" value={tranche.programId} />
+        <ReceiptRow label="Milestone" value={tranche.milestoneKey} />
+        <ReceiptRow label="Proof job" value={proofJob?.id ?? "-"} />
+        <ReceiptRow label="Proof system" value={String(proofJob?.proofJson?.["proofSystem"] ?? "-")} />
+        <ReceiptRow label="Verification key" value={proofField(proofJob, "verificationKeyHash")} />
+        <ReceiptRow label="Proof digest" value={proofField(proofJob, "proofDigest")} />
+        <ReceiptRow label="Policy hash" value={snapshot?.policyHash ?? "-"} />
+        <ReceiptRow label="Snapshot commitment" value={snapshot?.snapshotCommitment ?? "-"} />
+        <ReceiptRow label="Threshold result" value={proofAccepted === null ? "-" : proofAccepted ? "passed" : "failed"} />
+        <ReceiptRow label="Release wallet" value={tranche.releaseToWallet} />
+        <ReceiptRow label="Contract tx" value={txHash || "-"} />
+        <ReceiptRow label="Tranche status" value={tranche.status} />
+      </div>
+    </div>
+  );
+}
+
 export function StartupProfilePanel() {
   const client = useMemo(() => new PactApiClient(webEnv.apiUrl), []);
   const [form, setForm] = useState<StartupProfileForm>(defaultForm);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<StartupProfileDto[]>([]);
   const [pools, setPools] = useState<InvestmentPoolDto[]>([]);
   const [applications, setApplications] = useState<StartupPoolApplicationDto[]>([]);
   const [stripeStatuses, setStripeStatuses] = useState<Record<string, StripeConnectionStatusDto>>({});
   const [snapshots, setSnapshots] = useState<Record<string, StripeRevenueSnapshotDto>>({});
   const [proofJobs, setProofJobs] = useState<Record<string, ProofJobDto>>({});
+  const [releaseTxHashes, setReleaseTxHashes] = useState<Record<string, string>>({});
   const [releaseMessages, setReleaseMessages] = useState<Record<string, string>>({});
   const [applicationInputs, setApplicationInputs] = useState<
     Record<string, { startupProfileId: string; note: string }>
   >({});
+  const [applicationNoteInputs, setApplicationNoteInputs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -92,6 +197,80 @@ export function StartupProfilePanel() {
       ...current,
       [key]: value
     }));
+  };
+
+  const editProfile = (profile: StartupProfileDto) => {
+    setEditingProfileId(profile.id);
+    setForm({
+      name: profile.name,
+      summary: profile.summary,
+      industry: profile.industry,
+      stage: profile.stage,
+      website: profile.website ?? "",
+      requestedAmount: profile.requestedAmount,
+      currency: profile.currency,
+      fundingUse: profile.fundingUse,
+      requirements: profile.requirements,
+      traction: profile.traction
+    });
+  };
+
+  const resetProfileForm = () => {
+    setEditingProfileId(null);
+    setForm(defaultForm);
+  };
+
+  const archiveProfile = (profileId: string) => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const response = await client.archiveStartupProfile(profileId);
+        setProfiles((current) =>
+          current.map((profile) => (profile.id === response.data.id ? response.data : profile))
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof PactApiClientError
+            ? caughtError.message
+            : "Startup archive failed"
+        );
+      }
+    });
+  };
+
+  const updateApplicationNote = (application: StartupPoolApplicationDto) => {
+    const note = applicationNoteInputs[application.id] ?? application.note;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const response = await client.updatePoolApplication(application.id, { note });
+        setApplications((current) =>
+          current.map((item) => (item.id === response.data.id ? response.data : item))
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof PactApiClientError
+            ? caughtError.message
+            : "Application update failed"
+        );
+      }
+    });
+  };
+
+  const retractApplication = (applicationId: string) => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await client.retractPoolApplication(applicationId);
+        setApplications((current) => current.filter((item) => item.id !== applicationId));
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof PactApiClientError
+            ? caughtError.message
+            : "Application retract failed"
+        );
+      }
+    });
   };
 
   const updateApplicationInput = (
@@ -206,14 +385,20 @@ export function StartupProfilePanel() {
           if (!proofJob) {
             throw new Error("Generate a Stripe revenue proof first");
           }
-          await client.submitStripeRevenueProof({
+          const response = (await client.submitStripeRevenueProof({
             proofJobId: proofJob.id,
             programId,
             milestoneKey: tranche.milestoneKey
-          });
+          })) as { data?: { txHash?: string; tranche?: { txHash?: string | null } } };
+          const txHash = response.data?.txHash ?? response.data?.tranche?.txHash ?? undefined;
+          if (txHash) {
+            setReleaseTxHashes((current) => ({ ...current, [key]: txHash }));
+          }
           setReleaseMessages((current) => ({
             ...current,
-            [key]: "Tranche release submitted to the smart contract"
+            [key]: txHash
+              ? "Tranche released on testnet"
+              : "Tranche release submitted to the smart contract"
           }));
           await loadWorkspace();
         }
@@ -238,9 +423,18 @@ export function StartupProfilePanel() {
           setError(null);
           startTransition(async () => {
             try {
+              if (editingProfileId) {
+                const response = await client.updateStartupProfile(editingProfileId, form);
+                setProfiles((current) =>
+                  current.map((profile) => (profile.id === response.data.id ? response.data : profile))
+                );
+                resetProfileForm();
+                return;
+              }
+
               const response = await client.createStartupProfile(form);
               setProfiles((current) => [response.data, ...current]);
-              setForm(defaultForm);
+              resetProfileForm();
             } catch (caughtError) {
               setError(
                 caughtError instanceof PactApiClientError
@@ -336,9 +530,20 @@ export function StartupProfilePanel() {
             onChange={(event) => updateField("traction", event.target.value)}
           />
         </div>
-        <Button disabled={isPending} type="submit">
-          {isPending ? "Submitting..." : "Submit startup"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={isPending} type="submit">
+            {isPending
+              ? "Saving..."
+              : editingProfileId
+                ? "Update startup"
+                : "Submit startup"}
+          </Button>
+          {editingProfileId ? (
+            <Button onClick={resetProfileForm} type="button" variant="outline">
+              Cancel edit
+            </Button>
+          ) : null}
+        </div>
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Startup submission failed</AlertTitle>
@@ -375,6 +580,19 @@ export function StartupProfilePanel() {
                   {profile.requestedAmount} {profile.currency}
                 </div>
                 <div className="[overflow-wrap:anywhere]">{profile.requirements}</div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button onClick={() => editProfile(profile)} type="button" variant="outline">
+                  Edit startup
+                </Button>
+                <Button
+                  disabled={profile.status === "Archived"}
+                  onClick={() => archiveProfile(profile.id)}
+                  type="button"
+                  variant="outline"
+                >
+                  Archive
+                </Button>
               </div>
             </div>
           ))}
@@ -486,6 +704,12 @@ export function StartupProfilePanel() {
                             <Badge variant="secondary">{releaseMessages[key]}</Badge>
                           ) : null}
                         </div>
+                        <ProofReceipt
+                          proofJob={proofJob}
+                          releaseTxHash={releaseTxHashes[key]}
+                          snapshot={snapshots[key]}
+                          tranche={tranche}
+                        />
                       </div>
                     );
                   })}
@@ -589,6 +813,38 @@ export function StartupProfilePanel() {
                   <p className="mt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]">
                     {application.note}
                   </p>
+                  {application.status !== "Accepted" ? (
+                    <div className="mt-3 grid gap-2">
+                      <Textarea
+                        aria-label="Application note"
+                        value={applicationNoteInputs[application.id] ?? application.note}
+                        onChange={(event) =>
+                          setApplicationNoteInputs((current) => ({
+                            ...current,
+                            [application.id]: event.target.value
+                          }))
+                        }
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          disabled={isPending}
+                          onClick={() => updateApplicationNote(application)}
+                          type="button"
+                          variant="outline"
+                        >
+                          Save note
+                        </Button>
+                        <Button
+                          disabled={isPending}
+                          onClick={() => retractApplication(application.id)}
+                          type="button"
+                          variant="outline"
+                        >
+                          Withdraw
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                   {application.programId ? (
                     <div className="mt-3 text-xs text-muted-foreground">
                       Program {application.programId.slice(0, 8)}

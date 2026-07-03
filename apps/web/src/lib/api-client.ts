@@ -36,6 +36,9 @@ import {
   SubmitMilestoneProofRequestSchema,
   SubmitStripeRevenueProofRequestSchema,
   TrancheDtoSchema,
+  UpdateInvestmentPoolRequestSchema,
+  UpdateStartupPoolApplicationRequestSchema,
+  UpdateStartupProfileRequestSchema,
   WalletRoleDtoSchema,
   type AssignWalletRoleRequest,
   type ApplyToInvestmentPoolRequest,
@@ -54,7 +57,10 @@ import {
   type GenerateProofRequest,
   type SelectAccountRoleRequest,
   type SubmitMilestoneProofRequest,
-  type SubmitStripeRevenueProofRequest
+  type SubmitStripeRevenueProofRequest,
+  type UpdateInvestmentPoolRequest,
+  type UpdateStartupPoolApplicationRequest,
+  type UpdateStartupProfileRequest
 } from "@pact/shared";
 
 type Parser<T> = {
@@ -204,6 +210,21 @@ export class PactApiClient {
     });
   }
 
+  public updateStartupProfile(startupId: string, input: UpdateStartupProfileRequest) {
+    return this.request(`/api/startups/${startupId}`, {
+      method: "PATCH",
+      body: UpdateStartupProfileRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(StartupProfileDtoSchema)
+    });
+  }
+
+  public archiveStartupProfile(startupId: string) {
+    return this.request(`/api/startups/${startupId}`, {
+      method: "DELETE",
+      schema: ApiSuccessResponseSchema(StartupProfileDtoSchema)
+    });
+  }
+
   public createInvestmentPool(input: CreateInvestmentPoolRequest) {
     return this.request("/api/investment-pools", {
       method: "POST",
@@ -217,6 +238,21 @@ export class PactApiClient {
     return this.request(`/api/investment-pools${query}`, {
       method: "GET",
       schema: ApiSuccessResponseSchema(InvestmentPoolDtoSchema.array())
+    });
+  }
+
+  public updateInvestmentPool(poolId: string, input: UpdateInvestmentPoolRequest) {
+    return this.request(`/api/investment-pools/${poolId}`, {
+      method: "PATCH",
+      body: UpdateInvestmentPoolRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(InvestmentPoolDtoSchema)
+    });
+  }
+
+  public archiveInvestmentPool(poolId: string) {
+    return this.request(`/api/investment-pools/${poolId}`, {
+      method: "DELETE",
+      schema: ApiSuccessResponseSchema(InvestmentPoolDtoSchema)
     });
   }
 
@@ -239,6 +275,24 @@ export class PactApiClient {
     return this.request("/api/investment-pool-applications/incoming", {
       method: "GET",
       schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema.array())
+    });
+  }
+
+  public updatePoolApplication(
+    applicationId: string,
+    input: UpdateStartupPoolApplicationRequest
+  ) {
+    return this.request(`/api/investment-pool-applications/${applicationId}`, {
+      method: "PATCH",
+      body: UpdateStartupPoolApplicationRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(StartupPoolApplicationDtoSchema)
+    });
+  }
+
+  public retractPoolApplication(applicationId: string) {
+    return this.request(`/api/investment-pool-applications/${applicationId}`, {
+      method: "DELETE",
+      schema: UnknownSuccessSchema
     });
   }
 
@@ -457,7 +511,7 @@ export class PactApiClient {
   private async request<T>(
     path: string,
     options: {
-      method: "GET" | "POST";
+      method: "DELETE" | "GET" | "PATCH" | "POST";
       body?: unknown;
       headers?: Record<string, string>;
       schema: Parser<T>;

@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pact End-to-End Judge Demo Report - 2026-07-03</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #181818;
+      --panel-3: #202020;
+      --line: #34302a;
+      --text: #f6f2e9;
+      --muted: #aaa39a;
+      --gold: #f7b832;
+      --gold-2: #ffe08a;
+      --green: #45d483;
+      --red: #ff6b6b;
+      --blue: #7db4ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 28% 0%, rgba(247,184,50,.12), transparent 32%), var(--bg);
+      color: var(--text);
+      font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    a { color: var(--gold-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    main { width: min(1220px, calc(100vw - 32px)); margin: 0 auto; padding: 34px 0 72px; }
+    h1, h2, h3 { margin: 0; line-height: 1.1; letter-spacing: 0; }
+    h1 { max-width: 980px; font-size: clamp(36px, 6vw, 78px); }
+    h2 { margin-top: 42px; font-size: 28px; }
+    h3 { font-size: 16px; }
+    p { margin: 10px 0 0; color: var(--muted); }
+    code { color: var(--gold-2); background: #0d0b07; border: 1px solid #3b2d10; border-radius: 5px; padding: 2px 6px; }
+    .hero { padding: 34px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, rgba(32,32,32,.96), rgba(13,13,13,.98)); box-shadow: 0 26px 80px rgba(0,0,0,.45); }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px; color: var(--gold); font-weight: 800; text-transform: uppercase; font-size: 12px; }
+    .hero-grid, .metric-grid, .flow-grid, .proof-grid { display: grid; gap: 14px; }
+    .hero-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 28px; }
+    .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 16px; }
+    .flow-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 16px; }
+    .proof-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; }
+    .card, .flow-step { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 16px; min-width: 0; }
+    .card strong { display: block; color: var(--text); }
+    .card span, .flow-step span { display: block; margin-top: 6px; color: var(--muted); overflow-wrap: anywhere; }
+    .status { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 10px; background: rgba(69,212,131,.14); color: var(--green); border: 1px solid rgba(69,212,131,.42); font-weight: 800; font-size: 12px; text-transform: uppercase; }
+    .flow-step { position: relative; background: linear-gradient(180deg, #191919, #101010); }
+    .flow-step b { color: var(--gold); font-size: 12px; text-transform: uppercase; }
+    .section-lead { max-width: 880px; }
+    table { width: 100%; margin-top: 16px; border-collapse: collapse; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--gold); background: #101010; font-size: 12px; text-transform: uppercase; }
+    td span { color: var(--muted); font-size: 12px; }
+    tr:last-child td { border-bottom: 0; }
+    .screens { display: grid; gap: 22px; margin-top: 18px; }
+    figure { margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); box-shadow: 0 16px 50px rgba(0,0,0,.25); }
+    figure img { display: block; width: 100%; height: auto; }
+    figcaption { padding: 13px 15px; color: var(--muted); border-top: 1px solid var(--line); }
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+    .callout { margin-top: 18px; border: 1px solid rgba(247,184,50,.38); background: rgba(247,184,50,.08); border-radius: 8px; padding: 16px; }
+    .callout strong { color: var(--gold-2); }
+    .small { font-size: 12px; color: var(--muted); }
+    @media (max-width: 980px) {
+      .hero-grid, .metric-grid, .flow-grid, .proof-grid, .two-col { grid-template-columns: 1fr; }
+      main { width: min(100vw - 20px, 1220px); }
+      .hero { padding: 22px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="eyebrow">Pact judge demo / full happy path / Stellar testnet</div>
+      <h1>Investor capital to startup tranche, released by Stripe MRR ZK proof.</h1>
+      <p class="section-lead">This report captures the complete Pact mechanics in the live local dashboard: investor creates an investment pool, founder places a startup, founder applies, investor approves and funds a milestone program on Stellar testnet, founder connects Stripe, generates a Groth16 revenue proof, and receives an automatic smart-contract tranche release.</p>
+      <div class="hero-grid">
+        <div class="card"><strong>Result</strong><span class="status">Passed end-to-end</span></div>
+        <div class="card"><strong>Demo ID</strong><span>JUDGE-285500</span></div>
+        <div class="card"><strong>Program</strong><span><code>34080fa7-c418-47b5-89aa-ce92258fb38b</code></span></div>
+        <div class="card"><strong>Final release tx</strong><span><a href="https://stellar.expert/explorer/testnet/tx/ead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b" target="_blank" rel="noreferrer"><code>0xead23e14d803...f37d8f51b81b</code></a></span></div>
+      </div>
+    </section>
+
+    <h2>Scenario Map</h2>
+    <p class="section-lead">Every step below is backed by a persisted database record, a real Stripe test-mode connector result, a local Groth16 proof job, or a Stellar testnet transaction.</p>
+    <div class="flow-grid">
+      <div class="flow-step"><b>1. Investor</b><span>Create investment pool with MRR milestone terms.</span></div>
+      <div class="flow-step"><b>2. Founder</b><span>Create startup profile and apply to the pool.</span></div>
+      <div class="flow-step"><b>3. Approve</b><span>Investor accepts the application; Pact creates, funds and activates escrow.</span></div>
+      <div class="flow-step"><b>4. Prove</b><span>Founder connects Stripe, creates an MRR snapshot and generates Groth16 proof.</span></div>
+      <div class="flow-step"><b>5. Release</b><span>Digest-bound proof is submitted and the tranche is released on Stellar testnet.</span></div>
+    </div>
+
+    <h2>Business Objects</h2>
+    <div class="metric-grid">
+      <div class="card"><strong>Investment pool</strong><span>Pact JUDGE-285500 ZK Growth Fund<br>Investment / 250000 USDC</span></div>
+      <div class="card"><strong>Startup</strong><span>Pact JUDGE-285500 Revenue AI<br>Fintech / private revenue proofs / Seed</span></div>
+      <div class="card"><strong>Application</strong><span>Accepted<br><code>64a174f2-1b33-40e5-95c1-28dc0fe6570f</code></span></div>
+      <div class="card"><strong>Tranche</strong><span>Released<br>250000 USDC to founder wallet</span></div>
+    </div>
+
+    <h2>Proof Receipt</h2>
+    <div class="proof-grid">
+      <div class="card"><strong>Stripe connection</strong><span>Status: connected<br>Mode: test<br>Account hash: <code>0x383e3b0d5096...30d954f6e4c0</code></span></div>
+      <div class="card"><strong>MRR snapshot</strong><span>Snapshot: <code>8415888b-6cf1-4987-bd74-62a959f18745</code><br>Threshold: 1000000 usd<br>Result: passed</span></div>
+      <div class="card"><strong>Groth16 proof</strong><span>Job: <code>bae1890d-7b08-4436-81ef-47c8e107e6c8</code><br>VK: <code>0x41675206197a...e853615c93d0</code><br>Digest: <code>0x72550e6dab77...4c1ee78cefec</code></span></div>
+    </div>
+    <div class="callout"><strong>Trust model:</strong> Pact fetched real Stripe test-mode payment data for the connected account, generated and verified a local Groth16 proof off-chain, then bound the verified public-input digest to on-chain Stellar testnet attestations before releasing the demo SAC tranche.</div>
+
+    <h2>Stellar Testnet Transactions</h2>
+    <p class="section-lead">These are the actual Soroban transactions recorded during this scenario. Each row links to Stellar Expert testnet explorer.</p>
+    <table>
+      <thead><tr><th>#</th><th>Operation</th><th>Transaction hash</th><th>Recorded at</th><th>Explorer</th></tr></thead>
+      <tbody>
+  <tr>
+    <td>1</td>
+    <td><strong>Create escrow program</strong><br><span>ProgramCreatedOnChain</span></td>
+    <td><code>0x384c47c7d44c...0107539e0301</code></td>
+    <td>2026-07-03T14:20:31.935Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/384c47c7d44cb0cdccfbcc4e288ade4b2220bcbf8cce39f8ed730107539e0301" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>Add M1 tranche</strong><br><span>TrancheAddedOnChain</span></td>
+    <td><code>0xbee011318593...678cb862c15a</code></td>
+    <td>2026-07-03T14:20:39.849Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/bee011318593d47ab59d9afbfbb8e5101021f70406012c2ec83b678cb862c15a" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>Fund escrow with demo SAC asset</strong><br><span>EscrowFundedOnChain</span></td>
+    <td><code>0x145a2344b1ca...2544717e2289</code></td>
+    <td>2026-07-03T14:20:45.291Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/145a2344b1ca49c2a24c519b71494a143792b895e608c53488b82544717e2289" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>Activate funded program</strong><br><span>ProgramActivatedOnChain</span></td>
+    <td><code>0xf6af69f57d85...609507228e46</code></td>
+    <td>2026-07-03T14:20:50.600Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/f6af69f57d85b742afb0e7de2f16014f08c32742c07087909b37609507228e46" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>Set verifier mode to Groth16 digest</strong><br><span>VerifierModeSetOnChain</span></td>
+    <td><code>0x8af07da39475...1fa81f97e185</code></td>
+    <td>2026-07-03T14:25:11.334Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/8af07da39475b803db702f2019cffaa178b48f64fc515c72db781fa81f97e185" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><strong>Activate eligibility policy</strong><br><span>EligibilityPolicyActivatedOnChain</span></td>
+    <td><code>0x22e99e7d8396...cb048b0326cd</code></td>
+    <td>2026-07-03T14:25:15.270Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/22e99e7d839667a731d6c233e78dd8050bd34de42e37e618a5e7cb048b0326cd" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td><strong>Activate eligibility root</strong><br><span>EligibilityRootActivatedOnChain</span></td>
+    <td><code>0x51bce17d451b...43312094caf8</code></td>
+    <td>2026-07-03T14:25:20.529Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/51bce17d451b07bd3b019742c68a1e7b8c0a0afe9bf87b91aad443312094caf8" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td><strong>Submit eligibility digest attestation</strong><br><span>EligibilityProofSubmittedOnChain</span></td>
+    <td><code>0xf766a8607d36...7dba5b6f9f08</code></td>
+    <td>2026-07-03T14:25:25.913Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/f766a8607d369f99fdf495e81326e39e8f8890eee18dcded97647dba5b6f9f08" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td><strong>Activate milestone policy</strong><br><span>MilestonePolicyActivatedOnChain</span></td>
+    <td><code>0xee574751fc2a...67dbd14b0664</code></td>
+    <td>2026-07-03T14:25:31.238Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/ee574751fc2a7f71dbdeb8382734e47e4a9684ef155f672d3b2f67dbd14b0664" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>10</td>
+    <td><strong>Activate Stripe snapshot root</strong><br><span>MilestoneRootActivatedOnChain</span></td>
+    <td><code>0xf567afdfe1c0...28215ec7dd73</code></td>
+    <td>2026-07-03T14:25:36.529Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/f567afdfe1c02b17d0d8cf08df4d22dbfe9f0533f7e232065d7328215ec7dd73" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>11</td>
+    <td><strong>Submit MRR proof digest attestation</strong><br><span>MilestoneProofSubmittedOnChain</span></td>
+    <td><code>0xd9a99746e97b...6c59bae3721f</code></td>
+    <td>2026-07-03T14:25:40.180Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/d9a99746e97b6c770bce4aa81d376551a8b98fed1f465dd888ea6c59bae3721f" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr>
+  <tr>
+    <td>12</td>
+    <td><strong>Release tranche to founder wallet</strong><br><span>TrancheReleasedOnChain</span></td>
+    <td><code>0xead23e14d803...f37d8f51b81b</code></td>
+    <td>2026-07-03T14:25:45.874Z</td>
+    <td><a href="https://stellar.expert/explorer/testnet/tx/ead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b" target="_blank" rel="noreferrer">Open in Stellar Expert</a></td>
+  </tr></tbody>
+    </table>
+
+    <h2>Visual Walkthrough</h2>
+    <p class="section-lead">Screenshots were captured from the authorized Chrome session against <code>localhost:3000</code> and the local API on <code>localhost:4000</code>.</p>
+    <div class="screens">
+      
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/01-investor-pool-empty-form.png" alt="Investor workspace: investment pool form before entry." loading="lazy" />
+    <figcaption>Investor workspace: investment pool form before entry.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/02-investor-pool-form-filled.png" alt="Investor enters the new investment pool thesis, requirements, stages and budget." loading="lazy" />
+    <figcaption>Investor enters the new investment pool thesis, requirements, stages and budget.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/04-investor-my-pool-visible.png" alt="The newly created pool is visible under My investment pools." loading="lazy" />
+    <figcaption>The newly created pool is visible under My investment pools.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/05-founder-startup-empty-form.png" alt="Founder workspace: startup placement form before entry." loading="lazy" />
+    <figcaption>Founder workspace: startup placement form before entry.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/06-founder-startup-form-filled.png" alt="Founder enters startup characteristics, requested capital and traction." loading="lazy" />
+    <figcaption>Founder enters startup characteristics, requested capital and traction.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/07-founder-startup-created.png" alt="Startup profile is persisted and appears in My startup requests." loading="lazy" />
+    <figcaption>Startup profile is persisted and appears in My startup requests.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/08-founder-application-note-filled.png" alt="Founder applies the startup to the investor pool with an application note." loading="lazy" />
+    <figcaption>Founder applies the startup to the investor pool with an application note.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/09-founder-application-submitted.png" alt="Application is submitted and visible in the founder workspace." loading="lazy" />
+    <figcaption>Application is submitted and visible in the founder workspace.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/10-investor-incoming-application.png" alt="Investor receives the startup application with startup details and MRR milestone terms." loading="lazy" />
+    <figcaption>Investor receives the startup application with startup details and MRR milestone terms.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/11-investor-approval-form-before-submit.png" alt="Investor approval form before submitting approved amount, wallet and Stripe MRR threshold." loading="lazy" />
+    <figcaption>Investor approval form before submitting approved amount, wallet and Stripe MRR threshold.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/12-investor-application-approved-onchain.png" alt="Application is accepted; Pact creates and activates a funded on-chain program." loading="lazy" />
+    <figcaption>Application is accepted; Pact creates and activates a funded on-chain program.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/13-founder-stripe-proof-workspace-new-program.png" alt="Founder opens the approved program in the Stripe MRR proof workspace." loading="lazy" />
+    <figcaption>Founder opens the approved program in the Stripe MRR proof workspace.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/15-stripe-oauth-screen-or-callback.png" alt="Stripe Connect OAuth in test mode starts for the approved program." loading="lazy" />
+    <figcaption>Stripe Connect OAuth in test mode starts for the approved program.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/20-founder-stripe-status-connected.png" alt="Pact shows Stripe connected for the approved program." loading="lazy" />
+    <figcaption>Pact shows Stripe connected for the approved program.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/22-founder-mrr-snapshot-passed.png" alt="Pact creates a redacted MRR snapshot and the threshold passes." loading="lazy" />
+    <figcaption>Pact creates a redacted MRR snapshot and the threshold passes.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/23-founder-groth16-proof-generated.png" alt="Groth16 proof is generated and verified off-chain; proof digest is ready for on-chain attestation." loading="lazy" />
+    <figcaption>Groth16 proof is generated and verified off-chain; proof digest is ready for on-chain attestation.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/24-founder-before-contract-release.png" alt="Founder is ready to submit the verified proof for smart contract tranche release." loading="lazy" />
+    <figcaption>Founder is ready to submit the verified proof for smart contract tranche release.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="interface-scenario-screenshots-2026-07-03/25-founder-tranche-released.png" alt="Final state: tranche is Released and the Stellar testnet tx hash is visible in the UI." loading="lazy" />
+    <figcaption>Final state: tranche is Released and the Stellar testnet tx hash is visible in the UI.</figcaption>
+  </figure>
+    </div>
+
+    <h2>Final Verification</h2>
+    <div class="two-col">
+      <div class="card"><strong>Database state</strong><span>Application: Accepted<br>Program: Active<br>Tranche: Released at 2026-07-03T14:25:45.975Z<br>Release tx: <code>0xead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b</code></span></div>
+      <div class="card"><strong>On-chain payout evidence</strong><span>Release operation: <a href="https://stellar.expert/explorer/testnet/tx/ead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b" target="_blank" rel="noreferrer">0xead23e14d803fe5c...29f37d8f51b81b</a><br>Demo SAC recipient balance after release: <code>500100</code><br>Asset contract: <code>CDPIXI6CEJ7J...PMH2FXVQ</code></span></div>
+    </div>
+    <p class="small">Generated on 2026-07-03 from Pact local dashboard, Neon-backed API data, Stripe test-mode connector records, local Groth16 proof output, and Stellar testnet contract events.</p>
+  </main>
+</body>
+</html>

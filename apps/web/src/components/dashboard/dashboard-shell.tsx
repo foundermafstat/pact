@@ -11,9 +11,11 @@ import {
   ClipboardListIcon,
   HomeIcon,
   LogOutIcon,
+  RocketIcon,
   SearchIcon,
   Settings2Icon,
   ShieldCheckIcon,
+  CreditCardIcon,
   WalletCardsIcon
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -91,6 +93,12 @@ const navSections: Array<{
         icon: Building2Icon
       },
       {
+        href: "/dashboard/startup/stripe",
+        label: "Stripe Proof",
+        roles: ["Project"],
+        icon: CreditCardIcon
+      },
+      {
         href: "/dashboard/audit",
         label: "Audit",
         roles: ["Observer", "Investor", "Sponsor", "Project"],
@@ -123,6 +131,12 @@ const navSections: Array<{
         label: "Marketplace",
         roles: ["Admin"],
         icon: WalletCardsIcon
+      },
+      {
+        href: "/dashboard/admin/demo",
+        label: "Judge Demo",
+        roles: ["Admin"],
+        icon: RocketIcon
       },
       {
         href: "/dashboard/admin/rbac",

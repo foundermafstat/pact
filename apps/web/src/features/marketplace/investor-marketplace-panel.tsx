@@ -56,7 +56,11 @@ const defaultPeriodStart = (): string => {
   return date.toISOString().slice(0, 10);
 };
 
-const defaultPeriodEnd = (): string => new Date().toISOString().slice(0, 10);
+const defaultPeriodEnd = (): string => {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+};
 
 type ApprovalInput = {
   amount: string;
@@ -70,6 +74,7 @@ type ApprovalInput = {
 export function InvestorMarketplacePanel() {
   const client = useMemo(() => new PactApiClient(webEnv.apiUrl), []);
   const [poolForm, setPoolForm] = useState<PoolForm>(defaultPoolForm);
+  const [editingPoolId, setEditingPoolId] = useState<string | null>(null);
   const [startups, setStartups] = useState<StartupProfileDto[]>([]);
   const [pools, setPools] = useState<InvestmentPoolDto[]>([]);
   const [applications, setApplications] = useState<StartupPoolApplicationDto[]>([]);
@@ -111,6 +116,43 @@ export function InvestorMarketplacePanel() {
       ...current,
       [key]: value
     }));
+  };
+
+  const editPool = (pool: InvestmentPoolDto) => {
+    setEditingPoolId(pool.id);
+    setPoolForm({
+      name: pool.name,
+      poolType: pool.poolType,
+      thesis: pool.thesis,
+      targetIndustry: pool.targetIndustry,
+      stages: pool.stages,
+      totalAmount: pool.totalAmount,
+      currency: pool.currency,
+      requirements: pool.requirements
+    });
+  };
+
+  const resetPoolForm = () => {
+    setEditingPoolId(null);
+    setPoolForm(defaultPoolForm);
+  };
+
+  const archivePool = (poolId: string) => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const response = await client.archiveInvestmentPool(poolId);
+        setPools((current) =>
+          current.map((pool) => (pool.id === response.data.id ? response.data : pool))
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof PactApiClientError
+            ? caughtError.message
+            : "Pool archive failed"
+        );
+      }
+    });
   };
 
   const updateCommitmentInput = (
@@ -237,9 +279,18 @@ export function InvestorMarketplacePanel() {
           setError(null);
           startTransition(async () => {
             try {
+              if (editingPoolId) {
+                const response = await client.updateInvestmentPool(editingPoolId, poolForm);
+                setPools((current) =>
+                  current.map((pool) => (pool.id === response.data.id ? response.data : pool))
+                );
+                resetPoolForm();
+                return;
+              }
+
               const response = await client.createInvestmentPool(poolForm);
               setPools((current) => [response.data, ...current]);
-              setPoolForm(defaultPoolForm);
+              resetPoolForm();
             } catch (caughtError) {
               setError(
                 caughtError instanceof PactApiClientError
@@ -330,8 +381,13 @@ export function InvestorMarketplacePanel() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button disabled={isPending} type="submit">
-            {isPending ? "Creating..." : "Create pool"}
+            {isPending ? "Saving..." : editingPoolId ? "Update pool" : "Create pool"}
           </Button>
+          {editingPoolId ? (
+            <Button onClick={resetPoolForm} type="button" variant="outline">
+              Cancel edit
+            </Button>
+          ) : null}
           <Button onClick={() => void loadData()} type="button" variant="outline">
             Refresh
           </Button>
@@ -609,6 +665,19 @@ export function InvestorMarketplacePanel() {
                     {pool.totalAmount} {pool.currency}
                   </div>
                   <div className="[overflow-wrap:anywhere]">{pool.requirements}</div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button onClick={() => editPool(pool)} type="button" variant="outline">
+                    Edit pool
+                  </Button>
+                  <Button
+                    disabled={pool.status === "Archived"}
+                    onClick={() => archivePool(pool.id)}
+                    type="button"
+                    variant="outline"
+                  >
+                    Archive
+                  </Button>
                 </div>
               </div>
             ))}

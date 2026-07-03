@@ -57,7 +57,7 @@ export const loadApiConfig = (): ApiConfig => ({
 });
 
 export const getDatabaseUrl = (): string =>
-  process.env["DATABASE_URL"] ?? "postgresql://pact:pact@localhost:5432/pact";
+  process.env["DATABASE_URL"] ?? "postgresql://localhost:5432/pact";
 
 export const getRedisUrl = (): string =>
   process.env["REDIS_URL"] ?? "redis://localhost:6379";

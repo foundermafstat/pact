@@ -4,7 +4,10 @@ import {
   ApproveStartupPoolApplicationRequestSchema,
   CreateInvestmentCommitmentRequestSchema,
   CreateInvestmentPoolRequestSchema,
-  CreateStartupProfileRequestSchema
+  CreateStartupProfileRequestSchema,
+  UpdateInvestmentPoolRequestSchema,
+  UpdateStartupPoolApplicationRequestSchema,
+  UpdateStartupProfileRequestSchema
 } from "@pact/shared";
 import { z } from "zod";
 
@@ -42,6 +45,38 @@ export const registerMarketplaceRoutes = async (
       data: await marketplaceService.listAvailableStartupProfiles()
     };
   });
+
+  app.patch<{ Params: { startupId: string } }>(
+    "/api/startups/:startupId",
+    async (request) => {
+      const session = await requireRole(request, ["Project", "Admin"]);
+      const body = UpdateStartupProfileRequestSchema.parse(request.body);
+
+      return {
+        data: await marketplaceService.updateStartupProfile(
+          session.user.wallet,
+          request.params.startupId,
+          body,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
+
+  app.delete<{ Params: { startupId: string } }>(
+    "/api/startups/:startupId",
+    async (request) => {
+      const session = await requireRole(request, ["Project", "Admin"]);
+
+      return {
+        data: await marketplaceService.archiveStartupProfile(
+          session.user.wallet,
+          request.params.startupId,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
 
   app.post<{ Params: { startupId: string } }>(
     "/api/startups/:startupId/commitments",
@@ -83,6 +118,38 @@ export const registerMarketplaceRoutes = async (
     };
   });
 
+  app.patch<{ Params: { poolId: string } }>(
+    "/api/investment-pools/:poolId",
+    async (request) => {
+      const session = await requireRole(request, ["Investor", "Sponsor", "Admin"]);
+      const body = UpdateInvestmentPoolRequestSchema.parse(request.body);
+
+      return {
+        data: await marketplaceService.updateInvestmentPool(
+          session.user.wallet,
+          request.params.poolId,
+          body,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
+
+  app.delete<{ Params: { poolId: string } }>(
+    "/api/investment-pools/:poolId",
+    async (request) => {
+      const session = await requireRole(request, ["Investor", "Sponsor", "Admin"]);
+
+      return {
+        data: await marketplaceService.archiveInvestmentPool(
+          session.user.wallet,
+          request.params.poolId,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
+
   app.post<{ Params: { poolId: string } }>(
     "/api/investment-pools/:poolId/applications",
     async (request) => {
@@ -117,6 +184,38 @@ export const registerMarketplaceRoutes = async (
       )
     };
   });
+
+  app.patch<{ Params: { applicationId: string } }>(
+    "/api/investment-pool-applications/:applicationId",
+    async (request) => {
+      const session = await requireRole(request, ["Project", "Admin"]);
+      const body = UpdateStartupPoolApplicationRequestSchema.parse(request.body);
+
+      return {
+        data: await marketplaceService.updatePoolApplication(
+          session.user.wallet,
+          request.params.applicationId,
+          body,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
+
+  app.delete<{ Params: { applicationId: string } }>(
+    "/api/investment-pool-applications/:applicationId",
+    async (request) => {
+      const session = await requireRole(request, ["Project", "Admin"]);
+
+      return {
+        data: await marketplaceService.retractPoolApplication(
+          session.user.wallet,
+          request.params.applicationId,
+          session.user.roles.includes("Admin")
+        )
+      };
+    }
+  );
 
   app.post<{ Params: { applicationId: string } }>(
     "/api/investment-pool-applications/:applicationId/approve",

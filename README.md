@@ -1,380 +1,241 @@
-# Pact: Private Milestone Escrow
+# Pact: Private Milestone Funding With ZK Proofs
 
-Pact is a Stellar/Soroban milestone escrow MVP that releases funding only when a project proves eligibility and milestone completion without revealing private business data.
+Pact is a working Stellar testnet MVP for private milestone-based startup funding.
 
-The project combines:
+It lets investors or grant operators create funding pools, lets founders place startups and apply for capital, and releases milestone tranches automatically after a private business condition is proven with a zero-knowledge proof.
 
-- **Public accountability**: sponsors, projects, and observers can see escrow status, policy/root activation, proof submission, and tranche release events.
-- **Private verification**: projects and attestors can prove that eligibility or milestone thresholds were satisfied without publishing raw KYB/KYC attributes, private evidence, or exact KPI values.
-- **Programmable escrow**: Soroban contracts bind program, milestone, recipient, amount, policy, root, and nullifier checks before releasing a tranche.
+The current demo proves the full path:
 
-The MVP is implemented as a full local/testnet demo with frontend, API, prover service, indexer skeleton, Circom circuits, TypeScript SDK/shared packages, and deployed Stellar testnet contracts.
+- investor creates an investment pool;
+- founder creates a startup profile and applies;
+- investor approves the startup and defines an MRR milestone;
+- Pact creates, funds, and activates a Stellar testnet escrow program;
+- founder connects a Stripe test account;
+- Pact reads real Stripe test-mode revenue data;
+- Pact creates a redacted MRR snapshot;
+- Pact generates and verifies a local Groth16 proof;
+- Pact submits digest-bound proof attestations on-chain;
+- the `MilestoneEscrow` contract releases the tranche automatically.
 
-## Problem
+Full visual proof report:
 
-Milestone-based funding is common in grants, accelerators, venture programs, public goods funding, DAO treasuries, and regulated financial products. The usual tradeoff is weak:
+[Open the end-to-end scenario report](docs/interface-scenario-visual-report-2026-07-03.html)
 
-- If all milestone evidence is public, projects may expose sensitive metrics, customers, revenue, audit documents, or compliance data.
-- If milestone evidence is private, sponsors and public observers cannot independently trust that the release conditions were satisfied.
-- If verification is handled manually, escrow release becomes slow, subjective, and difficult to audit.
+## Why Pact Matters
 
-Pact solves this by separating **what must be public** from **what must remain private**.
+Startup funding, grants, and accelerator programs often require sensitive evidence: revenue, customer traction, compliance status, payment records, or audit data. Publishing that data is risky. Hiding it completely makes investor approval and tranche release hard to trust.
 
-Public data includes program identity, policies, roots, proof status, nullifier usage, escrow funding, and tranche release. Private data includes raw KYB/KYC fields, raw milestone evidence, exact private KPI values, and credential secrets.
+Pact separates private evidence from public accountability.
 
-## How Pact Uses ZK
+Founders prove that a milestone is true without exposing the underlying private records. Investors and judges can still verify program creation, escrow funding, proof submission, and tranche release through public Stellar testnet transactions.
 
-Pact uses zero-knowledge proofs to let a project prove that required conditions are true without revealing the underlying private inputs.
+## Judge Demo Highlights
 
-### What ZK Proves
+| Capability | Current status |
+| --- | --- |
+| Role-specific founder and investor dashboards | Implemented |
+| Investor pool creation | Implemented with database persistence |
+| Founder startup profile creation | Implemented with database persistence |
+| Startup application to investment pool | Implemented |
+| Investor approval with milestone terms | Implemented |
+| Stellar testnet program creation | Implemented |
+| Stellar testnet escrow funding | Implemented with demo SAC token transfer |
+| Stripe Connect OAuth test-mode flow | Implemented |
+| Real Stripe test payment data snapshot | Implemented |
+| Local Groth16 proof generation | Implemented |
+| Off-chain Groth16 verification | Implemented |
+| On-chain proof digest attestation | Implemented |
+| Automatic smart-contract tranche release | Implemented |
+| Stellar Explorer links for every on-chain step | Included in the report and below |
 
-Pact currently has two proof domains.
+## Interface Screenshots
 
-#### 1. Eligibility Proof
+Investor creates the investment pool:
 
-The project proves it satisfies an eligibility policy, for example:
+![Investor pool form](docs/interface-scenario-screenshots-2026-07-03/02-investor-pool-form-filled.png)
 
-- sanctions check passed
-- credential is not expired
-- project is accredited or non-US, depending on policy
-- credential belongs to a published credential Merkle root
-- proof is bound to the intended policy/context
+Investor approves the startup and Pact creates the on-chain program:
 
-The public verifier learns only that the credential satisfies the policy. It does not learn the raw KYB/KYC attributes.
+![Investor approval](docs/interface-scenario-screenshots-2026-07-03/12-investor-application-approved-onchain.png)
 
-#### 2. Milestone Unlock Proof
+Founder generates the Groth16 proof:
 
-The project proves a milestone is complete, for example:
+![Groth16 proof generated](docs/interface-scenario-screenshots-2026-07-03/23-founder-groth16-proof-generated.png)
 
-- `active_users >= 500`
-- `pilot_partners >= 3`
-- `audit_passed == true`
-- milestone evidence belongs to a published milestone Merkle root
-- proof is bound to the program, milestone, recipient, tranche amount, and policy
+Founder receives the released tranche:
 
-The public verifier learns only that the threshold passed. It does not learn the exact user count, exact partner list, private audit report, or raw source evidence.
+![Tranche released](docs/interface-scenario-screenshots-2026-07-03/25-founder-tranche-released.png)
 
-### What Is Public
+## Real Demo Evidence
 
-The following values are intentionally public because contracts and observers need them:
+The latest captured scenario uses these records:
 
-- policy hash
-- root hash
-- proof type
-- program id
-- milestone id
-- recipient wallet
-- tranche amount
-- nullifier
-- verification status
-- release transaction hash
+| Item | Value |
+| --- | --- |
+| Investment pool | `Pact JUDGE-285500 ZK Growth Fund` |
+| Startup | `Pact JUDGE-285500 Revenue AI` |
+| Program ID | `34080fa7-c418-47b5-89aa-ce92258fb38b` |
+| Milestone | `M1` |
+| Approved tranche | `250000 USDC` |
+| Stripe threshold | `1000000` cents, `usd` |
+| Stripe snapshot | `8415888b-6cf1-4987-bd74-62a959f18745` |
+| Snapshot commitment | `0xec71387e978a758296d5ce047e3a0fba9480734d4c571cf69809a4213c147489` |
+| Proof job | `bae1890d-7b08-4436-81ef-47c8e107e6c8` |
+| Proof system | `groth16` |
+| Verification key hash | `0x41675206197a735011e5fbcd948e5e85914d6b937e4fb3308c06e853615c93d0` |
+| Proof digest | `0x72550e6dab77367f809c4f1aaecde0f66b222589533ac1c0830d4c1ee78cefec` |
+| Final tranche status | `Released` |
+| Final release tx | [`0xead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b`](https://stellar.expert/explorer/testnet/tx/ead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b) |
 
-### What Stays Private
+## How The ZK Flow Works
 
-The following values are not exposed in public audit views:
+Pact does not publish the raw Stripe account ID, raw charges, customer data, source references, or private witness values.
 
-- raw KYB/KYC fields
-- credential secrets
-- raw milestone metrics
-- private evidence files or source references
-- exact KPI values when only a threshold matters
-- private witness inputs used by the circuits
+Instead, the API fetches real Stripe test-mode payment data for the connected account and creates a private revenue snapshot. The public side receives only commitments and policy values:
 
-### Concrete ZK Implementation
+- connected account hash;
+- policy hash;
+- snapshot commitment;
+- source reference commitment;
+- threshold amount;
+- currency;
+- period start and end;
+- nullifier;
+- ordered public inputs.
 
-The MVP implements ZK with:
+The local proof runner then generates a Groth16 proof over the revenue-threshold circuit and verifies it off-chain with `snarkjs`. The successful proof produces:
 
-- **Circom circuits** in `circuits/eligibility-proof` and `circuits/milestone-unlock-proof`.
-- **Groth16 / BN254** proving pipeline through `snarkjs`.
-- **Merkle-root membership checks** for credential and milestone evidence roots.
-- **Policy hash binding** so a proof is valid only for the intended policy.
-- **Nullifier/context binding** so proofs cannot be replayed across programs, milestones, recipients, or amounts.
-- **Public input formatting** in `packages/zk`.
-- **Proof job orchestration** in `apps/api` and `apps/prover`.
-- **Verifier adapter contract path** in `contracts/verifier-adapter`.
+- `proofSystem = groth16`;
+- `verified = true`;
+- verification key hash;
+- proof digest;
+- ordered public inputs.
 
-The MVP supports mock and digest verifier modes for demo/contract integration, while the circuit artifacts and local proving pipeline generate real Groth16-style proof artifacts for the eligibility and milestone circuits. Production hardening would replace remaining mock/demo verifier paths with a fully governed on-chain verifier flow and audited trusted setup process.
+For the MVP, Pact uses a digest-attestation model on-chain:
 
-## Why This Matters
+1. Groth16 proof is generated locally.
+2. Groth16 proof is verified off-chain.
+3. Pact canonicalizes the proof and public inputs.
+4. Pact computes the proof digest.
+5. Pact submits digest-bound public inputs to `MilestoneEscrow`.
+6. `MilestoneEscrow` checks active policy, active root, nullifier, milestone, recipient, amount, and digest binding.
+7. The contract releases the tranche only after the proof path marks the milestone ready.
 
-Pact turns private off-chain facts into public, auditable release conditions.
+This release is not simulated. The tranche release is a real Stellar testnet transaction, and every on-chain operation is linked below.
 
-Instead of asking sponsors to trust a private report, the project can submit a proof. Instead of asking projects to publish sensitive operating metrics, the project can reveal only that the milestone condition is satisfied. Instead of making public observers trust a backend, Pact records escrow and verification state through contract-compatible artifacts and public audit projections.
+## Stellar Testnet Transactions
 
-The result is a funding workflow where privacy and accountability are not mutually exclusive.
+All links open in Stellar Expert testnet explorer.
 
-## Real-World Applications
+| # | Operation | Transaction |
+| --- | --- | --- |
+| 1 | Create escrow program | [`0x384c47c7d44cb0cdccfbcc4e288ade4b2220bcbf8cce39f8ed730107539e0301`](https://stellar.expert/explorer/testnet/tx/384c47c7d44cb0cdccfbcc4e288ade4b2220bcbf8cce39f8ed730107539e0301) |
+| 2 | Add M1 tranche | [`0xbee011318593d47ab59d9afbfbb8e5101021f70406012c2ec83b678cb862c15a`](https://stellar.expert/explorer/testnet/tx/bee011318593d47ab59d9afbfbb8e5101021f70406012c2ec83b678cb862c15a) |
+| 3 | Fund escrow with demo SAC asset | [`0x145a2344b1ca49c2a24c519b71494a143792b895e608c53488b82544717e2289`](https://stellar.expert/explorer/testnet/tx/145a2344b1ca49c2a24c519b71494a143792b895e608c53488b82544717e2289) |
+| 4 | Activate funded program | [`0xf6af69f57d85b742afb0e7de2f16014f08c32742c07087909b37609507228e46`](https://stellar.expert/explorer/testnet/tx/f6af69f57d85b742afb0e7de2f16014f08c32742c07087909b37609507228e46) |
+| 5 | Set verifier mode to Groth16 digest | [`0x8af07da39475b803db702f2019cffaa178b48f64fc515c72db781fa81f97e185`](https://stellar.expert/explorer/testnet/tx/8af07da39475b803db702f2019cffaa178b48f64fc515c72db781fa81f97e185) |
+| 6 | Activate eligibility policy | [`0x22e99e7d839667a731d6c233e78dd8050bd34de42e37e618a5e7cb048b0326cd`](https://stellar.expert/explorer/testnet/tx/22e99e7d839667a731d6c233e78dd8050bd34de42e37e618a5e7cb048b0326cd) |
+| 7 | Activate eligibility root | [`0x51bce17d451b07bd3b019742c68a1e7b8c0a0afe9bf87b91aad443312094caf8`](https://stellar.expert/explorer/testnet/tx/51bce17d451b07bd3b019742c68a1e7b8c0a0afe9bf87b91aad443312094caf8) |
+| 8 | Submit eligibility digest attestation | [`0xf766a8607d369f99fdf495e81326e39e8f8890eee18dcded97647dba5b6f9f08`](https://stellar.expert/explorer/testnet/tx/f766a8607d369f99fdf495e81326e39e8f8890eee18dcded97647dba5b6f9f08) |
+| 9 | Activate milestone policy | [`0xee574751fc2a7f71dbdeb8382734e47e4a9684ef155f672d3b2f67dbd14b0664`](https://stellar.expert/explorer/testnet/tx/ee574751fc2a7f71dbdeb8382734e47e4a9684ef155f672d3b2f67dbd14b0664) |
+| 10 | Activate Stripe snapshot root | [`0xf567afdfe1c02b17d0d8cf08df4d22dbfe9f0533f7e232065d7328215ec7dd73`](https://stellar.expert/explorer/testnet/tx/f567afdfe1c02b17d0d8cf08df4d22dbfe9f0533f7e232065d7328215ec7dd73) |
+| 11 | Submit MRR proof digest attestation | [`0xd9a99746e97b6c770bce4aa81d376551a8b98fed1f465dd888ea6c59bae3721f`](https://stellar.expert/explorer/testnet/tx/d9a99746e97b6c770bce4aa81d376551a8b98fed1f465dd888ea6c59bae3721f) |
+| 12 | Release tranche to founder wallet | [`0xead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b`](https://stellar.expert/explorer/testnet/tx/ead23e14d803fe5c85abd1d88623aa1466c3ed392da61da75529f37d8f51b81b) |
 
-Pact can be adapted to:
+## Current Testnet Contracts
 
-- accelerator or grant programs that release capital after verified milestones
-- DAO treasury funding with privacy-preserving milestone evidence
-- public goods or impact funding where outcomes must be audited
-- regulated investor participation where eligibility must be proven privately
-- RWA or tokenized asset workflows that require compliance gates
-- enterprise vendor or supplier payouts based on private performance evidence
-- research, climate, or social impact programs where raw data is sensitive but threshold completion must be public
+Latest deployment artifact:
 
-## Key Features
+`contracts/deployments/latest.contracts.json`
 
-- Sponsor dashboard for program creation, funding, activation, and tranche status.
-- Project dashboard for eligibility and milestone proof flows.
-- Issuer console for mock credential creation, root building, publishing, and revocation.
-- Attestor console for private milestone evidence validation and root publishing.
-- Public audit view that hides private inputs while showing accountability events.
-- Attack demo panel for replay, revoked credential, inactive root, cross-program, and wrong-recipient cases.
-- Stellar testnet contract deployment artifacts.
-- Local/testnet deployment verification scripts.
-- TypeScript SDK and shared domain schemas.
-- ZK fixtures, witness/proof scripts, and positive/negative circuit tests.
+| Contract | Stellar testnet ID |
+| --- | --- |
+| PolicyRegistry | `CBYOVZI66Z46OM5HVKLUVCYQLFESGQ7NLLFBHTQAI7AB4DCYCLGL2P4Y` |
+| RootRegistry | `CCG3CM6UBLCHESYMSFYLFV6JNA22LM5U6PB3BUJPRT3Q2OHGCILNW356` |
+| NullifierRegistry | `CADRYB5M6ZBZTGAOXE6GMYOQNHUL3XJDVWS33KFSOCULJ44LQ7YNUEGH` |
+| VerifierAdapter | `CAPP7AEL6QHEVODGZRSZPGO2ZS5K7FLKUTVI57ABYT4AXMSTMZPXONQS` |
+| MilestoneEscrow | `CDBIYLEX767RXTGPIALHY2M65SVUWRHDEYHMOWJR55CTETS4CASMGILZ` |
+| Demo SAC asset | `CDPIXI6CEJ7JJURHKGDPJPYUXOZC4QT5V46JHQL6QB5A4X4KPMH2FXVQ` |
+| GatedAssetController | `CBJBLO5L37CSP3OPAZAIVH6TQS6N7XVZA2MQM5IBHGJEFHHNQE4RICEP` |
+
+## Product Surface
+
+| Role | Implemented interface |
+| --- | --- |
+| Founder | Startup profile creation, available pools and grants, applications, approved programs, Stripe MRR proof workspace, tranche release receipt. |
+| Investor | Investment/grant pool creation, startup pool review, incoming applications, approval with milestone editor, commitments, owned pools. |
+| Admin | Combined marketplace/admin surfaces for reviewing both founder and investor flows. |
+| Public audit | Contract events, proof receipts, tx hashes, and redacted public evidence. |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  Sponsor["Sponsor"] --> Web["Next.js Web App"]
-  Project["Project"] --> Web
-  Issuer["Issuer"] --> Web
-  Attestor["Milestone Attestor"] --> Web
-
+  Investor["Investor / Grant Operator"] --> Web["Next.js dashboard"]
+  Founder["Startup Founder"] --> Web
   Web --> API["Fastify API"]
-  API --> Prover["Prover Service"]
-  API --> Indexer["Event Indexer"]
-  API --> Shared["Shared Schemas / SDK / ZK Helpers"]
-
-  Prover --> Circuits["Circom Circuits + snarkjs"]
-  Circuits --> Proofs["Proof + Public Inputs"]
-  Proofs --> API
-
-  API --> Contracts["Soroban Contracts"]
-  Contracts --> Stellar["Stellar Testnet"]
-  Indexer --> Audit["Public Audit Projection"]
-  Audit --> Web
+  API --> DB["Neon Postgres / Prisma"]
+  API --> Stripe["Stripe Connect test API"]
+  API --> Prover["Local Groth16 proof runner"]
+  Prover --> Circuits["Circom + snarkjs"]
+  API --> Escrow["MilestoneEscrow SDK"]
+  Escrow --> Stellar["Stellar testnet contracts"]
+  Stellar --> Explorer["Stellar Expert explorer"]
 ```
 
 ## Repository Structure
 
 | Path | Purpose |
 | --- | --- |
-| `apps/web` | Next.js demo UI for sponsor, project, issuer, attestor, audit, and attacks. |
-| `apps/api` | Fastify API, DTO validation, MVP services, Prisma schema. |
-| `apps/prover` | Prover service, local/mock proof processing, worker skeleton. |
-| `apps/indexer` | Event mapper, cursor store, public audit indexer skeleton. |
-| `contracts` | Rust Soroban contracts and contract tests. |
-| `circuits` | Eligibility and milestone Circom circuits, fixtures, proving scripts. |
-| `packages/shared` | Constants, Zod schemas, DTOs, policy hashing. |
-| `packages/sdk` | TypeScript API and Soroban client helpers. |
-| `packages/zk` | Merkle helpers, fixtures, public input formatting. |
-| `scripts/deploy` | Contract, off-chain, and frontend deployment checks. |
-| `scripts/demo` | Happy path and attack scenario scripts. |
-| `docs` | Scope, architecture, threat model, deployment runbook, final report. |
+| `apps/web` | Next.js role-aware dashboard and landing/demo surfaces. |
+| `apps/api` | Fastify API, Prisma persistence, marketplace, Stripe connector, proof orchestration, contract runtime. |
+| `contracts` | Rust Soroban contracts and testnet deployment artifacts. |
+| `circuits` | Circom circuits and snarkjs proof pipeline. |
+| `packages/shared` | DTOs, schemas, status enums, shared contracts. |
+| `packages/sdk` | TypeScript Soroban clients and SDK helpers. |
+| `packages/zk` | ZK public input and helper utilities. |
+| `docs` | Final visual walkthrough report and its screenshots. |
 
-## Technical Stack
+## Run Locally
 
-| Layer | Technology |
-| --- | --- |
-| Monorepo | `pnpm` workspace |
-| Frontend | Next.js, React, TypeScript |
-| API | Node.js, Fastify, Zod |
-| Database model | PostgreSQL schema via Prisma |
-| Queue | BullMQ-compatible `proof-jobs` queue |
-| Contracts | Rust Soroban smart contracts |
-| Network | Stellar testnet |
-| ZK | Circom, snarkjs, Groth16, BN254 |
-| Testing | Vitest, Playwright, Rust contract tests, Circom/snarkjs scripts |
+Use the existing `.env` values for the configured Neon database, Stripe test mode, Stellar testnet contracts, and local Stellar CLI.
 
-## Implemented Contracts
-
-| Contract | Responsibility |
-| --- | --- |
-| `PolicyRegistry` | Policy lifecycle and active policy checks. |
-| `RootRegistry` | Credential/milestone root activation and current root reads. |
-| `NullifierRegistry` | Replay protection through nullifier tracking. |
-| `VerifierAdapter` | Mock/digest verifier modes and verifier configuration path. |
-| `MilestoneEscrow` | Program lifecycle, funding, eligibility, milestone proof submission, tranche release. |
-| `GatedAssetController` | Optional gated asset controller marker for future asset flows. |
-
-Latest testnet deployment artifact: `contracts/deployments/latest.contracts.json`.
-
-## Current Testnet Contract IDs
-
-| Contract | Stellar testnet ID |
-| --- | --- |
-| PolicyRegistry | `CDVYEDPPQGMTRYWLTICHNB3WCNCYENSF4WCKJW5KYHJWFTHZQSTIW2TP` |
-| RootRegistry | `CAZWJ4Y4ATQNZF237VVREHKMSC7PY622AJBDZIYURAP3DQO6PZPKTWWG` |
-| NullifierRegistry | `CB22RLWPWAHXOWIBUEINDERPLWI6W4FNPRPYGXBXBRNGQPAJCWPWDAQG` |
-| VerifierAdapter | `CDRIPSJMPQ3UNSSKDDJUXDHSY2FEEYQIUDKTNJN32EMCWOJW4SLKC3F3` |
-| MilestoneEscrow | `CAFPMSEXS5GUJBTUGYZXL2FOOXKRJQMCFFAEMGXXDC5HFKXQLVVV4P5D` |
-| GatedAssetController | `CDWKXDYQJEC442Z32LKJ2CDPWKFZXYAW67M24HADMSZDTNOKVZW4KAE4` |
-
-Contract smoke evidence: `version()` returned `1` for the deployed PolicyRegistry contract.
-
-## Main Demo Flow
-
-1. Sponsor creates a program with tranches and policy references.
-2. Sponsor funds and activates the program.
-3. Issuer creates a mock KYB credential.
-4. Issuer builds and publishes a credential Merkle root.
-5. Project generates an eligibility proof.
-6. Attestor validates hidden milestone evidence.
-7. Attestor builds and publishes a milestone root.
-8. Project generates a milestone unlock proof.
-9. API validates public inputs against program, milestone, recipient, and amount.
-10. Escrow releases the tranche.
-11. Public audit view shows release evidence without private inputs.
-
-## Attack Scenarios Covered
-
-Pact includes scripted negative-path demonstrations:
-
-- replayed milestone proof
-- revoked credential
-- inactive root
-- cross-program replay
-- wrong recipient
-
-Run:
+API:
 
 ```bash
-pnpm demo:attacks
+pnpm --dir apps/api dev
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- pnpm
-- Rust toolchain for Soroban contracts
-- Stellar CLI for contract deploy/invoke workflows
-- Circom and snarkjs for circuit workflows
-
-Install dependencies:
+Web:
 
 ```bash
-pnpm install
-```
-
-Create local environment:
-
-```bash
-cp .env.example .env
-```
-
-Real secrets must stay in `.env` or deployment secret storage. Do not commit secrets.
-
-## Run the Local Test Demo
-
-Start API:
-
-```bash
-APP_ENV=test API_HOST=127.0.0.1 API_PORT=4000 CORS_ORIGIN=http://127.0.0.1:3100 pnpm --filter @pact/api dev
-```
-
-Start prover in mock test mode:
-
-```bash
-APP_ENV=test PROVER_HOST=127.0.0.1 PROVER_PORT=4001 PROVER_MODE=mock PROVER_ENABLE_WORKER=false pnpm --filter @pact/prover dev
-```
-
-Start web:
-
-```bash
-NEXT_PUBLIC_APP_URL=http://127.0.0.1:3100 NEXT_PUBLIC_API_URL=http://127.0.0.1:4000 NEXT_PUBLIC_STELLAR_NETWORK=testnet pnpm --filter @pact/web dev --hostname 127.0.0.1 --port 3100
+pnpm --filter @pact/web dev --hostname 127.0.0.1 --port 3000
 ```
 
 Open:
 
 ```text
-http://127.0.0.1:3100
+http://localhost:3000
 ```
 
-Health checks:
+Targeted checks used during the final demo:
 
 ```bash
-curl http://127.0.0.1:4000/health
-curl http://127.0.0.1:4001/health
+pnpm --filter @pact/api typecheck
+pnpm --filter @pact/web typecheck
 ```
 
-## Verification Commands
-
-Happy path:
-
-```bash
-pnpm demo:happy-path
-```
-
-Attack scenarios:
-
-```bash
-pnpm demo:attacks
-```
-
-Off-chain deployment check:
-
-```bash
-pnpm deploy:offchain
-```
-
-Frontend build and Playwright smoke:
-
-```bash
-pnpm deploy:web
-```
-
-Circuit checks:
-
-```bash
-pnpm zk:test:eligibility
-pnpm zk:test:milestone
-```
-
-Contract tests:
-
-```bash
-cd contracts
-cargo test
-```
-
-## Deployment Artifacts
+## Demo Artifacts
 
 | Artifact | Purpose |
 | --- | --- |
-| `contracts/deployments/latest.contracts.json` | Latest Stellar testnet contract IDs. |
-| `docs/deployment/offchain-services.latest.json` | API/prover/indexer deployment verification result. |
-| `docs/deployment/frontend-demo.latest.json` | Frontend build and Playwright smoke result. |
-| `docs/final-acceptance-checklist.md` | Final MVP acceptance evidence. |
-| `docs/final-technical-report.md` | Full technical implementation report. |
+| `docs/interface-scenario-visual-report-2026-07-03.html` | Full visual walkthrough with screenshots and Stellar Explorer links. |
+| `docs/interface-scenario-screenshots-2026-07-03/` | Captured UI screenshots used by the walkthrough. |
 
-## Security and Privacy Notes
+## Honest MVP Boundary
 
-- Public audit views intentionally hide raw KYB/KYC fields, raw milestone metrics, credential secrets, private source references, and private witness inputs.
-- Proof public inputs are bound to policy, root, program, milestone, recipient, amount, and nullifier context.
-- Replay attempts are rejected by release state and nullifier-oriented contract design.
-- Revoked credentials and inactive roots are covered by negative-path tests.
-- Real secret values are not committed.
+Pact already demonstrates a real end-to-end local/testnet product path: database-backed marketplace, Stripe-backed revenue snapshot, local Groth16 proof generation and verification, on-chain digest attestation, escrow funding, and automatic tranche release.
 
-## Current Limitations
+The current MVP uses off-chain Groth16 verification with on-chain digest attestation. A production version should add audited verifier governance, stronger key ceremony documentation, production event indexing, hosted infrastructure, and external KYB/attestation providers.
 
-- External public hosting is not configured; the frontend demo currently runs locally.
-- API services use in-memory MVP state, with Prisma schema and migrations prepared for persistence.
-- Docker daemon may be required for strict local Postgres/Redis verification.
-- The event indexer has cursor and mapping coverage, but production Stellar RPC pagination and persistence hardening are future work.
-- Full production on-chain Groth16 verifier governance and audited trusted setup remain hardening tasks.
-- Issuer and attestor integrations are mock services in the MVP.
-
-## Production Hardening Roadmap
-
-- Move API services from in-memory MVP state to Prisma-backed persistence.
-- Provision managed Postgres and Redis.
-- Add production role-based auth for sponsor, project, issuer, attestor, and admin.
-- Replace mock issuer and attestor flows with signed external integrations.
-- Complete real asset issuance or final testnet/mainnet asset strategy.
-- Harden Stellar event indexing with pagination, retries, idempotency, and DB persistence.
-- Finalize verifier key governance and trusted setup process.
-- Add CI for TypeScript, Rust, circuits, Playwright, deploy dry-run, and secret scanning.
-- Configure public hosting, deployment secrets, monitoring, and incident runbooks.
-
-## Project Status
-
-The MVP is complete for local/testnet demonstration. It proves the core thesis: a milestone escrow can be publicly auditable while the eligibility and milestone evidence remain private through zero-knowledge proof workflows.
+The core thesis is proven: private business evidence can unlock public, auditable milestone funding without exposing sensitive startup data.

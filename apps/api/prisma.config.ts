@@ -6,7 +6,7 @@ export default defineConfig({
   datasource: {
     url:
       process.env["DATABASE_URL"] ??
-      "postgresql://pact:pact@localhost:5432/pact"
+      "postgresql://localhost:5432/pact"
   },
   migrations: {
     path: "prisma/migrations"

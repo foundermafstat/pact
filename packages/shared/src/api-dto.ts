@@ -287,6 +287,11 @@ export const CreateStartupProfileRequestSchema = z.object({
   traction: NonEmptyStringSchema
 });
 
+export const UpdateStartupProfileRequestSchema =
+  CreateStartupProfileRequestSchema.partial().extend({
+    status: z.enum(STARTUP_PROFILE_STATUSES).optional()
+  });
+
 export const CreateInvestmentPoolRequestSchema = z.object({
   name: NonEmptyStringSchema,
   poolType: z.enum(INVESTMENT_POOL_TYPES),
@@ -298,9 +303,18 @@ export const CreateInvestmentPoolRequestSchema = z.object({
   requirements: NonEmptyStringSchema
 });
 
+export const UpdateInvestmentPoolRequestSchema =
+  CreateInvestmentPoolRequestSchema.partial().extend({
+    status: z.enum(INVESTMENT_POOL_STATUSES).optional()
+  });
+
 export const ApplyToInvestmentPoolRequestSchema = z.object({
   startupProfileId: UuidSchema,
   note: NonEmptyStringSchema
+});
+
+export const UpdateStartupPoolApplicationRequestSchema = z.object({
+  note: NonEmptyStringSchema.optional()
 });
 
 export const ApproveStartupPoolApplicationRequestSchema = z.object({
@@ -472,11 +486,20 @@ export type FundProgramRequest = z.infer<typeof FundProgramRequestSchema>;
 export type CreateStartupProfileRequest = z.infer<
   typeof CreateStartupProfileRequestSchema
 >;
+export type UpdateStartupProfileRequest = z.infer<
+  typeof UpdateStartupProfileRequestSchema
+>;
 export type CreateInvestmentPoolRequest = z.infer<
   typeof CreateInvestmentPoolRequestSchema
 >;
+export type UpdateInvestmentPoolRequest = z.infer<
+  typeof UpdateInvestmentPoolRequestSchema
+>;
 export type ApplyToInvestmentPoolRequest = z.infer<
   typeof ApplyToInvestmentPoolRequestSchema
+>;
+export type UpdateStartupPoolApplicationRequest = z.infer<
+  typeof UpdateStartupPoolApplicationRequestSchema
 >;
 export type ApproveStartupPoolApplicationRequest = z.infer<
   typeof ApproveStartupPoolApplicationRequestSchema

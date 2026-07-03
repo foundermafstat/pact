@@ -17,7 +17,10 @@ import type {
   ProgramDto,
   StartupPoolApplicationDto,
   StartupProfileDto,
-  TrancheDto
+  TrancheDto,
+  UpdateInvestmentPoolRequest,
+  UpdateStartupPoolApplicationRequest,
+  UpdateStartupProfileRequest
 } from "@pact/shared";
 
 import { prisma } from "../db/client";
@@ -28,6 +31,17 @@ import {
 } from "./escrow-contract-service";
 
 const normalizeWallet = (wallet: string): string => wallet.trim().toUpperCase();
+
+const shouldRequireContractSetupOnApprove = (): boolean => {
+  const configured = process.env["REQUIRE_CONTRACT_SETUP_ON_APPROVE"];
+  if (configured === "true") {
+    return true;
+  }
+  if (configured === "false") {
+    return false;
+  }
+  return process.env["APP_ENV"] !== "local";
+};
 
 const amountToString = (value: { toFixed: (digits?: number) => string }): string =>
   value.toFixed(0);
@@ -208,6 +222,51 @@ export class MarketplaceService {
     return profiles.map(toStartupProfileDto);
   }
 
+  public async updateStartupProfile(
+    actorWallet: string,
+    startupProfileId: string,
+    input: UpdateStartupProfileRequest,
+    isAdmin = false
+  ): Promise<StartupProfileDto> {
+    const wallet = normalizeWallet(actorWallet);
+    const existing = await prisma.startupProfile.findUnique({
+      where: { id: startupProfileId }
+    });
+    if (!existing) {
+      throw new ApiError(404, "startup_not_found", "Startup profile was not found");
+    }
+    if (!isAdmin && normalizeWallet(existing.founderWallet) !== wallet) {
+      throw new ApiError(403, "startup_forbidden", "Wallet cannot update this startup profile");
+    }
+
+    const profile = await prisma.startupProfile.update({
+      where: { id: startupProfileId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.summary !== undefined ? { summary: input.summary.trim() } : {}),
+        ...(input.industry !== undefined ? { industry: input.industry.trim() } : {}),
+        ...(input.stage !== undefined ? { stage: input.stage.trim() } : {}),
+        ...(input.website !== undefined ? { website: normalizeNullableUrl(input.website) } : {}),
+        ...(input.requestedAmount !== undefined ? { requestedAmount: input.requestedAmount } : {}),
+        ...(input.currency !== undefined ? { currency: input.currency.trim().toUpperCase() } : {}),
+        ...(input.fundingUse !== undefined ? { fundingUse: input.fundingUse.trim() } : {}),
+        ...(input.requirements !== undefined ? { requirements: input.requirements.trim() } : {}),
+        ...(input.traction !== undefined ? { traction: input.traction.trim() } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {})
+      }
+    });
+
+    return toStartupProfileDto(profile);
+  }
+
+  public async archiveStartupProfile(
+    actorWallet: string,
+    startupProfileId: string,
+    isAdmin = false
+  ): Promise<StartupProfileDto> {
+    return this.updateStartupProfile(actorWallet, startupProfileId, { status: "Archived" }, isAdmin);
+  }
+
   public async listAvailableStartupProfiles(): Promise<StartupProfileDto[]> {
     const profiles = await prisma.startupProfile.findMany({
       where: {
@@ -265,6 +324,49 @@ export class MarketplaceService {
     return pools.map(toInvestmentPoolDto);
   }
 
+  public async updateInvestmentPool(
+    actorWallet: string,
+    investmentPoolId: string,
+    input: UpdateInvestmentPoolRequest,
+    isAdmin = false
+  ): Promise<InvestmentPoolDto> {
+    const wallet = normalizeWallet(actorWallet);
+    const existing = await prisma.investmentPool.findUnique({
+      where: { id: investmentPoolId }
+    });
+    if (!existing) {
+      throw new ApiError(404, "investment_pool_not_found", "Investment pool was not found");
+    }
+    if (!isAdmin && normalizeWallet(existing.ownerWallet) !== wallet) {
+      throw new ApiError(403, "investment_pool_forbidden", "Wallet cannot update this pool");
+    }
+
+    const pool = await prisma.investmentPool.update({
+      where: { id: investmentPoolId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.poolType !== undefined ? { poolType: input.poolType } : {}),
+        ...(input.thesis !== undefined ? { thesis: input.thesis.trim() } : {}),
+        ...(input.targetIndustry !== undefined ? { targetIndustry: input.targetIndustry.trim() } : {}),
+        ...(input.stages !== undefined ? { stages: input.stages.trim() } : {}),
+        ...(input.totalAmount !== undefined ? { totalAmount: input.totalAmount } : {}),
+        ...(input.currency !== undefined ? { currency: input.currency.trim().toUpperCase() } : {}),
+        ...(input.requirements !== undefined ? { requirements: input.requirements.trim() } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {})
+      }
+    });
+
+    return toInvestmentPoolDto(pool);
+  }
+
+  public async archiveInvestmentPool(
+    actorWallet: string,
+    investmentPoolId: string,
+    isAdmin = false
+  ): Promise<InvestmentPoolDto> {
+    return this.updateInvestmentPool(actorWallet, investmentPoolId, { status: "Archived" }, isAdmin);
+  }
+
   public async applyToInvestmentPool(
     founderWallet: string,
     investmentPoolId: string,
@@ -318,6 +420,17 @@ export class MarketplaceService {
         investmentPoolId,
         note: input.note.trim(),
         status: "Submitted"
+      },
+      include: {
+        investmentPool: true,
+        startupProfile: true,
+        program: {
+          include: {
+            tranches: {
+              orderBy: { milestoneKey: "asc" }
+            }
+          }
+        }
       }
     });
 
@@ -344,6 +457,84 @@ export class MarketplaceService {
     });
 
     return applications.map(toStartupPoolApplicationDto);
+  }
+
+  public async updatePoolApplication(
+    actorWallet: string,
+    applicationId: string,
+    input: UpdateStartupPoolApplicationRequest,
+    isAdmin = false
+  ): Promise<StartupPoolApplicationDto> {
+    const wallet = normalizeWallet(actorWallet);
+    const existing = await prisma.startupPoolApplication.findUnique({
+      where: { id: applicationId },
+      include: {
+        investmentPool: true,
+        startupProfile: true,
+        program: {
+          include: {
+            tranches: {
+              orderBy: { milestoneKey: "asc" }
+            }
+          }
+        }
+      }
+    });
+    if (!existing) {
+      throw new ApiError(404, "application_not_found", "Application was not found");
+    }
+    if (!isAdmin && normalizeWallet(existing.founderWallet) !== wallet) {
+      throw new ApiError(403, "application_forbidden", "Wallet cannot update this application");
+    }
+    if (existing.status === "Accepted" || existing.programId) {
+      throw new ApiError(400, "application_already_accepted", "Accepted application cannot be edited");
+    }
+
+    const application = await prisma.startupPoolApplication.update({
+      where: { id: applicationId },
+      data: {
+        ...(input.note !== undefined ? { note: input.note.trim() } : {})
+      },
+      include: {
+        investmentPool: true,
+        startupProfile: true,
+        program: {
+          include: {
+            tranches: {
+              orderBy: { milestoneKey: "asc" }
+            }
+          }
+        }
+      }
+    });
+
+    return toStartupPoolApplicationDto(application);
+  }
+
+  public async retractPoolApplication(
+    actorWallet: string,
+    applicationId: string,
+    isAdmin = false
+  ): Promise<{ id: string }> {
+    const wallet = normalizeWallet(actorWallet);
+    const existing = await prisma.startupPoolApplication.findUnique({
+      where: { id: applicationId }
+    });
+    if (!existing) {
+      throw new ApiError(404, "application_not_found", "Application was not found");
+    }
+    if (!isAdmin && normalizeWallet(existing.founderWallet) !== wallet) {
+      throw new ApiError(403, "application_forbidden", "Wallet cannot retract this application");
+    }
+    if (existing.status === "Accepted" || existing.programId) {
+      throw new ApiError(400, "application_already_accepted", "Accepted application cannot be deleted");
+    }
+
+    await prisma.startupPoolApplication.delete({
+      where: { id: applicationId }
+    });
+
+    return { id: applicationId };
   }
 
   public async listInvestorPoolApplications(
@@ -484,6 +675,10 @@ export class MarketplaceService {
         tranches: application.program.tranches.map(toTrancheDto)
       });
     } catch (error) {
+      if (!shouldRequireContractSetupOnApprove()) {
+        return toStartupPoolApplicationDto(application);
+      }
+
       await prisma.$transaction(async (tx) => {
         await tx.startupPoolApplication.update({
           where: { id: application.id },

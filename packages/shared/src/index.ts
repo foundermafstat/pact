@@ -47,6 +47,9 @@ export {
   TimestampSchema,
   TrancheDtoSchema,
   TransactionHashSchema,
+  UpdateInvestmentPoolRequestSchema,
+  UpdateStartupPoolApplicationRequestSchema,
+  UpdateStartupProfileRequestSchema,
   WalletRoleDtoSchema,
   UuidSchema
 } from "./api-dto";
@@ -105,6 +108,9 @@ export type {
   SubmitMilestoneProofRequest,
   SubmitStripeRevenueProofRequest,
   TrancheDto,
+  UpdateInvestmentPoolRequest,
+  UpdateStartupPoolApplicationRequest,
+  UpdateStartupProfileRequest,
   WalletRoleDto
 } from "./api-dto";
 export { canonicalizeJson } from "./canonical-json";

@@ -12,6 +12,8 @@ import { ApiError } from "../errors";
 import { getSessionToken, requireRole, requireSession } from "./auth-guards";
 
 const isCookieSecure = (): boolean => process.env["COOKIE_SECURE"] === "true";
+const isSelfRoleSelectionEnabled = (): boolean =>
+  process.env["ALLOW_SELF_ROLE_SELECTION"] === "true";
 
 const getCookieOptions = (secure: boolean) => ({
   httpOnly: true,
@@ -87,6 +89,13 @@ export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> =>
   app.post("/api/auth/select-role", async (request) => {
     const session = await requireSession(request);
     const body = SelectAccountRoleRequestSchema.parse(request.body);
+    if (!session.user.roles.includes(body.role) && !isSelfRoleSelectionEnabled()) {
+      throw new ApiError(
+        403,
+        "role_assignment_required",
+        "This wallet does not have this role. Ask an admin to assign it."
+      );
+    }
     return {
       data: {
         user: await authService.selectAccountRole({

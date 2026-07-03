@@ -310,7 +310,7 @@ html.dashboard-theme {
   --template-primary: #ffc700;
   position: relative;
   min-height: 100svh;
-  overflow: hidden;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 50% 48%, rgba(255, 199, 0, 0.14), transparent 16rem),
     radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.08), transparent 12rem),
@@ -403,7 +403,10 @@ html.dashboard-theme {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 2rem;
-  padding: 3.4rem clamp(1rem, 4vw, 3rem) 0;
+  padding: 1.1rem clamp(1rem, 4vw, 3rem) 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.58) 72%, transparent);
+  backdrop-filter: blur(10px);
 }
 
 .template-logo,
@@ -650,6 +653,221 @@ html.dashboard-theme {
   text-transform: none;
 }
 
+.template-story,
+.template-roles,
+.template-proof-section {
+  position: relative;
+  z-index: 6;
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 5rem 0;
+}
+
+.template-section-heading {
+  max-width: 50rem;
+}
+
+.template-section-heading h2,
+.template-role-panel h2,
+.template-proof-copy h2 {
+  margin: 0;
+  color: #ffffff;
+  font-family: "Sentient", Georgia, serif;
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  font-weight: 200;
+  line-height: 1;
+}
+
+.template-section-heading p,
+.template-role-panel p,
+.template-proof-copy p,
+.template-strength p {
+  color: var(--template-muted);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+.template-section-heading p {
+  max-width: 44rem;
+  margin: 1.2rem 0 0;
+}
+
+.template-flow-rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 2.2rem;
+}
+
+.template-flow-step {
+  position: relative;
+  min-height: 8.5rem;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  border: 1px solid rgba(255, 199, 0, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 199, 0, 0.12), transparent),
+    rgba(20, 20, 20, 0.74);
+  padding: 1rem;
+}
+
+.template-flow-step span {
+  color: rgba(255, 199, 0, 0.72);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.75rem;
+}
+
+.template-flow-step strong {
+  display: block;
+  margin-top: 1.25rem;
+  color: #ffffff;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.template-flow-step svg {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.8rem;
+  width: 1rem;
+  height: 1rem;
+  color: var(--template-primary);
+}
+
+.template-roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.template-role-panel,
+.template-proof-section,
+.template-strength {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 38%),
+    rgba(12, 12, 12, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 22px 70px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(14px);
+}
+
+.template-role-panel {
+  min-height: 31rem;
+  padding: clamp(1.4rem, 3vw, 2.4rem);
+}
+
+.template-role-icon,
+.template-proof-copy > svg {
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 199, 0, 0.34);
+  background: rgba(255, 199, 0, 0.1);
+  color: var(--template-primary);
+}
+
+.template-role-icon svg,
+.template-proof-copy > svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.template-role-panel h2,
+.template-proof-copy h2 {
+  margin-top: 1.5rem;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.template-role-panel ul {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template-role-panel li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  color: rgba(255, 255, 255, 0.84);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.template-role-panel li svg {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.12rem;
+  color: var(--template-primary);
+}
+
+.template-section-button {
+  height: 2.75rem;
+  margin-top: 1.8rem;
+  border-color: rgba(255, 199, 0, 0.36);
+  background: rgba(0, 0, 0, 0.36);
+  color: var(--template-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.template-proof-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: 2rem;
+  margin-bottom: 5rem;
+  padding: clamp(1.4rem, 3vw, 2.4rem);
+}
+
+.template-button-compact {
+  min-height: 3.1rem;
+  height: 3.1rem;
+  margin-top: 1.5rem;
+  font-size: 0.86rem;
+}
+
+.template-strength-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.template-strength {
+  padding: 1.1rem;
+}
+
+.template-strength svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--template-primary);
+}
+
+.template-strength h3 {
+  margin: 1rem 0 0;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.template-strength p {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+}
+
 @media (max-width: 760px) {
   .template-header {
     grid-template-columns: 1fr auto;
@@ -667,4 +885,28 @@ html.dashboard-theme {
   .template-actions {
     flex-direction: column;
   }
+
+  .template-story,
+  .template-roles,
+  .template-proof-section {
+    padding: 3rem 0;
+  }
+
+  .template-flow-rail,
+  .template-roles,
+  .template-proof-section,
+  .template-strength-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .template-flow-step {
+    min-height: 6rem;
+  }
+}
+
+.template-landing .template-header {
+  padding: 1.1rem clamp(1rem, 4vw, 3rem) 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.58) 72%, transparent);
+  backdrop-filter: blur(10px);
 }
