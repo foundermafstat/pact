@@ -260,15 +260,16 @@ export class PactApiClient {
       schema: Parser<T>;
     }
   ): Promise<T> {
+    const headers: Record<string, string> = {
+      ...options.headers
+    };
     const init: RequestInit = {
       method: options.method,
       credentials: "include",
-      headers: {
-        "content-type": "application/json",
-        ...options.headers
-      }
+      headers
     };
     if (options.body !== undefined) {
+      headers["content-type"] = headers["content-type"] ?? "application/json";
       init.body = JSON.stringify(options.body);
     }
 
