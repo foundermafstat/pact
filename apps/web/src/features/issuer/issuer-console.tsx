@@ -3,6 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import type { RootDto } from "@pact/shared";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { webEnv } from "../../config/env";
 import { PactApiClient, PactApiClientError } from "../../lib/api-client";
 import { toSafeRootSummary, type SafeRootSummary } from "./issuer-model";
@@ -63,37 +68,46 @@ export function IssuerConsole() {
   };
 
   return (
-    <div className="workflow-panel">
-      <label className="field">
-        <span>Wallet</span>
-        <input value={wallet} onChange={(event) => setWallet(event.target.value)} />
-      </label>
-      <div className="form-actions">
-        <button className="primary-button" disabled={isPending} onClick={() => run("credential")} type="button">
-          Create credential
-        </button>
-        <button className="secondary-button" disabled={isPending} onClick={() => run("build")} type="button">
-          Build root
-        </button>
-        <button className="secondary-button" disabled={isPending || !rootId} onClick={() => run("publish")} type="button">
-          Publish root
-        </button>
-        <button className="secondary-button" disabled={isPending || !credentialId} onClick={() => run("revoke")} type="button">
-          Revoke credential
-        </button>
-        <button className="secondary-button" disabled={isPending} onClick={() => run("rotate")} type="button">
-          Rotate root
-        </button>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="issuer-wallet">Wallet</Label>
+        <Input
+          id="issuer-wallet"
+          value={wallet}
+          onChange={(event) => setWallet(event.target.value)}
+        />
       </div>
-      {credentialId ? <span className="success-text">Credential {credentialId}</span> : null}
+      <div className="flex flex-wrap gap-3">
+        <Button disabled={isPending} onClick={() => run("credential")} type="button">
+          Create credential
+        </Button>
+        <Button disabled={isPending} onClick={() => run("build")} type="button" variant="outline">
+          Build root
+        </Button>
+        <Button disabled={isPending || !rootId} onClick={() => run("publish")} type="button" variant="outline">
+          Publish root
+        </Button>
+        <Button disabled={isPending || !credentialId} onClick={() => run("revoke")} type="button" variant="outline">
+          Revoke credential
+        </Button>
+        <Button disabled={isPending} onClick={() => run("rotate")} type="button" variant="outline">
+          Rotate root
+        </Button>
+      </div>
+      {credentialId ? <Badge variant="secondary">Credential {credentialId}</Badge> : null}
       {rootSummary ? (
-        <div className="summary-list">
-          <span>Root {rootSummary.root}</span>
+        <div className="grid gap-2 rounded-md border p-3 text-sm md:grid-cols-3">
+          <span className="truncate">Root {rootSummary.root}</span>
           <span>Status {rootSummary.status}</span>
-          <span>Tx {rootSummary.txHash ?? "Pending"}</span>
+          <span className="truncate">Tx {rootSummary.txHash ?? "Pending"}</span>
         </div>
       ) : null}
-      {error ? <span className="error-text">{error}</span> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Issuer operation failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

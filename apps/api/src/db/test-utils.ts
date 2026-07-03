@@ -1,6 +1,10 @@
 import type { PrismaClient } from "@prisma/client";
 
 const TABLES = [
+  "auth_sessions",
+  "auth_challenges",
+  "wallet_roles",
+  "wallet_accounts",
   "contract_events",
   "proof_jobs",
   "milestone_attestations",

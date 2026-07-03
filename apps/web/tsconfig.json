@@ -1,8 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "jsx": "preserve",
     "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "types": ["node", "vitest"]
   },
   "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"]

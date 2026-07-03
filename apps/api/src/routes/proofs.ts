@@ -9,6 +9,7 @@ import { attestorService } from "../services/attestor-service";
 import { issuerService } from "../services/issuer-service";
 import { proofJobService } from "../services/proof-job-service";
 import { programService } from "../services/program-service";
+import { requireProgramAccess, requireRole, requireSession } from "./auth-guards";
 
 const EligibilityProofGenerateRequestSchema = z.object({
   proofType: z.literal("Eligibility").optional(),
@@ -26,6 +27,7 @@ const sha256Hex = (value: string): `0x${string}` =>
 
 export const registerProofRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post("/api/proofs/eligibility/generate", async (request) => {
+    await requireRole(request, ["Project", "Admin"]);
     const parsed = EligibilityProofGenerateRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ApiError(
@@ -73,6 +75,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     return { data: completedJob };
   });
   app.post("/api/proofs/milestone/generate", async (request) => {
+    await requireRole(request, ["Project", "Admin"]);
     const parsed = MilestoneProofGenerateRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ApiError(
@@ -87,6 +90,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     if (!record) {
       throw new ApiError(404, "program_not_found", "Program was not found");
     }
+    await requireProgramAccess(request, record.program, "startup");
 
     const tranche = record.tranches.find(
       (item) => item.milestoneKey === parsed.data.milestoneKey
@@ -132,6 +136,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     return { data: completedJob };
   });
   app.post("/api/proofs/milestone/submit", async (request) => {
+    await requireRole(request, ["Project", "Admin"]);
     const parsed = SubmitMilestoneProofRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ApiError(
@@ -162,6 +167,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     if (!record || !tranche) {
       throw new ApiError(404, "milestone_not_found", "Milestone was not found");
     }
+    await requireProgramAccess(request, record.program, "startup");
 
     const publicInputs = proofJob.publicInputsJson ?? {};
     if (
@@ -202,6 +208,7 @@ export const registerProofRoutes = async (app: FastifyInstance): Promise<void> =
     };
   });
   app.get<{ Params: { proofId: string } }>("/api/proofs/:proofId", async (request) => {
+    await requireSession(request);
     const job = proofJobService.getJob(request.params.proofId);
     if (!job) {
       throw new ApiError(404, "proof_job_not_found", "Proof job was not found");

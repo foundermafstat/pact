@@ -8,9 +8,11 @@ import {
 import { ApiError } from "../errors";
 import { attestorService } from "../services/attestor-service";
 import { programService } from "../services/program-service";
+import { requireProgramAccess, requireRole } from "./auth-guards";
 
 export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post("/api/attestor/milestone-evidence/mock", async (request) => {
+    await requireRole(request, ["Attestor", "Admin"]);
     const body = CreateMilestoneEvidenceRequestSchema.parse(request.body);
     try {
       return {
@@ -25,6 +27,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
     }
   });
   app.post("/api/attestor/milestone-root/build", async (request) => {
+    await requireRole(request, ["Attestor", "Admin"]);
     const body = RootBuildRequestSchema.parse(request.body);
     try {
       return {
@@ -39,6 +42,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
     }
   });
   app.post("/api/attestor/milestone-root/publish", async (request) => {
+    await requireRole(request, ["Attestor", "Admin"]);
     const body = RootPublishRequestSchema.parse(request.body);
     const root = attestorService.publishMilestoneRoot(body.rootId);
     if (!root) {
@@ -62,17 +66,7 @@ export const registerAttestorRoutes = async (app: FastifyInstance): Promise<void
         throw new ApiError(404, "milestone_not_found", "Milestone was not found");
       }
 
-      const role = String(request.headers["x-pact-role"] ?? "");
-      const wallet = String(request.headers["x-pact-wallet"] ?? "");
-      const isAuthorizedProject =
-        role === "Project" && wallet === record.program.projectWallet;
-      if (role !== "Admin" && !isAuthorizedProject) {
-        throw new ApiError(
-          403,
-          "proof_input_forbidden",
-          "Only the project wallet or an admin can access milestone proof input"
-        );
-      }
+      await requireProgramAccess(request, record.program, "startup");
 
       try {
         return {

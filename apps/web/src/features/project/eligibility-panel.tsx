@@ -2,6 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { webEnv } from "../../config/env";
 import { PactApiClient, PactApiClientError } from "../../lib/api-client";
 import {
@@ -58,42 +63,52 @@ export function EligibilityPanel() {
   };
 
   return (
-    <div className="workflow-panel">
-      <label className="field">
-        <span>Project wallet</span>
-        <input value={wallet} onChange={(event) => setWallet(event.target.value)} />
-      </label>
-      <div className="form-actions">
-        <button
-          className="primary-button"
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="eligibility-wallet">Startup wallet</Label>
+        <Input
+          id="eligibility-wallet"
+          value={wallet}
+          onChange={(event) => setWallet(event.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <Button
           disabled={isPending}
           onClick={() => run("credential")}
           type="button"
         >
           Pass mock KYB
-        </button>
-        <button
-          className="secondary-button"
+        </Button>
+        <Button
           disabled={isPending || !credentialId}
           onClick={() => run("proof")}
           type="button"
+          variant="outline"
         >
           Generate proof
-        </button>
-        <button
-          className="secondary-button"
+        </Button>
+        <Button
           disabled={isPending || !proofJobId}
           onClick={() => run("submit")}
           type="button"
+          variant="outline"
         >
           Submit eligibility
-        </button>
+        </Button>
       </div>
-      <div className="workflow-status">
-        <strong>{getEligibilityStatusLabel(status)}</strong>
-        <span>{proofJobId ?? credentialId ?? "No credential yet"}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">{getEligibilityStatusLabel(status)}</Badge>
+        <span className="font-mono text-xs text-muted-foreground">
+          {proofJobId ?? credentialId ?? "No credential yet"}
+        </span>
       </div>
-      {error ? <span className="error-text">{error}</span> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Eligibility failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

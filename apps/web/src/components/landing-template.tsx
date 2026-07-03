@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { LandingConnectButton } from "@/components/auth/landing-connect-button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { WebglParticles } from "./webgl-particles";
 
 export function LandingTemplate() {
@@ -13,28 +16,36 @@ export function LandingTemplate() {
       <WebglParticles hovering={hovering} />
 
       <header className="template-header">
-        <Link className="template-logo" href="/" aria-label="Pact home">
-          <img src="/pact-logo-gradient.svg" alt="" aria-hidden="true" />
-          <span>Pact</span>
-        </Link>
+        <Button asChild className="template-logo" variant="link">
+          <Link href="/" aria-label="Pact home">
+            <img src="/pact-logo-gradient.svg" alt="" aria-hidden="true" />
+            <span>Pact</span>
+          </Link>
+        </Button>
 
         <nav className="template-nav" aria-label="Landing navigation">
-          <Link href="/sponsor">Sponsor</Link>
-          <Link href="/project">Project</Link>
-          <Link href="/issuer">Issuer</Link>
-          <Link href="/audit">Audit</Link>
+          <Button asChild variant="link">
+            <Link href="/dashboard/investor">Sponsor</Link>
+          </Button>
+          <Button asChild variant="link">
+            <Link href="/dashboard/startup">Project</Link>
+          </Button>
+          <Button asChild variant="link">
+            <Link href="/dashboard/admin/issuer">Issuer</Link>
+          </Button>
+          <Button asChild variant="link">
+            <Link href="/dashboard/audit">Audit</Link>
+          </Button>
         </nav>
 
-        <Link className="template-sign-in" href="/attestor">
-          Attestor
-        </Link>
+        <LandingConnectButton />
       </header>
 
       <section className="template-hero">
-        <div className="template-pill">
+        <Badge className="template-pill" variant="outline">
           <span />
           TESTNET RELEASE
-        </div>
+        </Badge>
         <h1>
           Private proof. <br />
           <i>Public accountability.</i>
@@ -44,20 +55,21 @@ export function LandingTemplate() {
           without exposing raw KYB data, private evidence, or exact KPI values.
         </p>
         <div className="template-actions">
-          <Link
+          <Button
+            asChild
             className="template-button"
-            href="/sponsor"
-            aria-label="Start demo"
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
             onFocus={() => setHovering(true)}
             onBlur={() => setHovering(false)}
           >
-            [Start Demo]
-          </Link>
-          <Link className="template-text-link" href="/audit">
-            View public audit
-          </Link>
+            <Link href="/dashboard" aria-label="Start demo">
+              [Start Demo]
+            </Link>
+          </Button>
+          <Button asChild className="template-text-link" variant="link">
+            <Link href="/dashboard/audit">View public audit</Link>
+          </Button>
         </div>
       </section>
     </main>

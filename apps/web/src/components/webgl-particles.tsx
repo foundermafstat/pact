@@ -203,6 +203,7 @@ export function WebglParticles({ hovering }: { hovering: boolean }) {
       canvas.dataset.webglUnsupported = "true";
       return undefined;
     }
+    canvas.dataset.webglActive = "true";
 
     let frameId = 0;
     let hoverValue = 0;
@@ -276,6 +277,7 @@ export function WebglParticles({ hovering }: { hovering: boolean }) {
       window.cancelAnimationFrame(frameId);
       gl.deleteBuffer(particleBuffer);
       gl.deleteProgram(program);
+      delete canvas.dataset.webglActive;
     };
   }, []);
 

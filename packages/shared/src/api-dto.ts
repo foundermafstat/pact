@@ -5,6 +5,7 @@ import {
   POLICY_TYPES,
   PROGRAM_STATUSES,
   PROOF_TYPES,
+  ROLES,
   ROOT_STATUSES,
   ROOT_TYPES,
   TRANCHE_STATUSES
@@ -17,6 +18,7 @@ export const TimestampSchema = z.string().datetime();
 export const AmountSchema = z.string().regex(/^[0-9]+$/);
 export const StellarAddressSchema = z.string().min(4);
 export const TransactionHashSchema = z.string().min(1);
+export const RoleSchema = z.enum(ROLES);
 
 export const ProgramDtoSchema = z.object({
   id: UuidSchema,
@@ -184,6 +186,46 @@ export const SubmitMilestoneProofRequestSchema = z.object({
   milestoneKey: NonEmptyStringSchema
 });
 
+export const AuthChallengeRequestSchema = z.object({
+  wallet: StellarAddressSchema,
+  walletProvider: NonEmptyStringSchema.optional()
+});
+
+export const AuthChallengeDtoSchema = z.object({
+  challengeId: UuidSchema,
+  wallet: StellarAddressSchema,
+  message: NonEmptyStringSchema,
+  expiresAt: TimestampSchema
+});
+
+export const AuthVerifyRequestSchema = z.object({
+  challengeId: UuidSchema,
+  wallet: StellarAddressSchema,
+  signature: NonEmptyStringSchema,
+  walletProvider: NonEmptyStringSchema.optional()
+});
+
+export const AuthUserDtoSchema = z.object({
+  wallet: StellarAddressSchema,
+  roles: z.array(RoleSchema),
+  primaryRole: RoleSchema
+});
+
+export const AuthSessionDtoSchema = z.object({
+  user: AuthUserDtoSchema,
+  expiresAt: TimestampSchema
+});
+
+export const WalletRoleDtoSchema = z.object({
+  wallet: StellarAddressSchema,
+  roles: z.array(RoleSchema)
+});
+
+export const AssignWalletRoleRequestSchema = z.object({
+  wallet: StellarAddressSchema,
+  role: RoleSchema
+});
+
 export const ApiErrorResponseSchema = z.object({
   error: z.object({
     code: NonEmptyStringSchema,
@@ -219,4 +261,13 @@ export type CreateMilestoneEvidenceRequest = z.infer<
 export type GenerateProofRequest = z.infer<typeof GenerateProofRequestSchema>;
 export type SubmitMilestoneProofRequest = z.infer<
   typeof SubmitMilestoneProofRequestSchema
+>;
+export type AuthChallengeRequest = z.infer<typeof AuthChallengeRequestSchema>;
+export type AuthChallengeDto = z.infer<typeof AuthChallengeDtoSchema>;
+export type AuthVerifyRequest = z.infer<typeof AuthVerifyRequestSchema>;
+export type AuthUserDto = z.infer<typeof AuthUserDtoSchema>;
+export type AuthSessionDto = z.infer<typeof AuthSessionDtoSchema>;
+export type WalletRoleDto = z.infer<typeof WalletRoleDtoSchema>;
+export type AssignWalletRoleRequest = z.infer<
+  typeof AssignWalletRoleRequestSchema
 >;

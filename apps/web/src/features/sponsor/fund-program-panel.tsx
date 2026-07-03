@@ -2,6 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { webEnv } from "../../config/env";
 import { PactApiClient, PactApiClientError } from "../../lib/api-client";
 import { getFundingProgress } from "./funding-model";
@@ -47,44 +52,56 @@ export function FundProgramPanel() {
   };
 
   return (
-    <div className="funding-panel">
-      <div className="form-grid">
-        <label className="field">
-          <span>Program ID</span>
-          <input value={programId} onChange={(event) => setProgramId(event.target.value)} />
-        </label>
-        <label className="field">
-          <span>Fund amount</span>
-          <input value={amount} onChange={(event) => setAmount(event.target.value)} />
-        </label>
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="fund-program-id">Program ID</Label>
+          <Input
+            id="fund-program-id"
+            value={programId}
+            onChange={(event) => setProgramId(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="fund-amount">Fund amount</Label>
+          <Input
+            id="fund-amount"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        </div>
       </div>
-      <div className="form-actions">
-        <button
-          className="primary-button"
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
           disabled={isPending || !programId}
           onClick={() => runAction("fund")}
           type="button"
         >
           Fund program
-        </button>
-        <button
-          className="secondary-button"
+        </Button>
+        <Button
           disabled={isPending || !programId}
           onClick={() => runAction("activate")}
           type="button"
+          variant="outline"
         >
           Activate
-        </button>
+        </Button>
         {fundingState ? (
-          <span className="success-text">
+          <Badge variant="secondary">
             {fundingState.status} · {progress}% funded
-          </span>
+          </Badge>
         ) : null}
-        {error ? <span className="error-text">{error}</span> : null}
       </div>
-      <div className="progress-track" aria-label="Funding progress">
-        <span style={{ width: `${progress}%` }} />
+      <div className="h-2 overflow-hidden rounded-full bg-secondary" aria-label="Funding progress">
+        <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
       </div>
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Funding failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

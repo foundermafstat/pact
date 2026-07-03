@@ -3,6 +3,12 @@ export {
   AmountSchema,
   ApiErrorResponseSchema,
   ApiSuccessResponseSchema,
+  AssignWalletRoleRequestSchema,
+  AuthChallengeDtoSchema,
+  AuthChallengeRequestSchema,
+  AuthSessionDtoSchema,
+  AuthUserDtoSchema,
+  AuthVerifyRequestSchema,
   ContractEventDtoSchema,
   CreateMilestoneEvidenceRequestSchema,
   CreateMockCredentialRequestSchema,
@@ -18,11 +24,13 @@ export {
   RootBuildRequestSchema,
   RootDtoSchema,
   RootPublishRequestSchema,
+  RoleSchema,
   StellarAddressSchema,
   SubmitMilestoneProofRequestSchema,
   TimestampSchema,
   TrancheDtoSchema,
   TransactionHashSchema,
+  WalletRoleDtoSchema,
   UuidSchema
 } from "./api-dto";
 export {
@@ -37,6 +45,12 @@ export {
   TRANCHE_STATUSES
 } from "./constants";
 export type {
+  AssignWalletRoleRequest,
+  AuthChallengeDto,
+  AuthChallengeRequest,
+  AuthSessionDto,
+  AuthUserDto,
+  AuthVerifyRequest,
   ContractEventDto,
   CreateMilestoneEvidenceRequest,
   CreateMockCredentialRequest,
@@ -51,7 +65,8 @@ export type {
   ProofJobDto,
   RootDto,
   SubmitMilestoneProofRequest,
-  TrancheDto
+  TrancheDto,
+  WalletRoleDto
 } from "./api-dto";
 export { canonicalizeJson } from "./canonical-json";
 export {

@@ -2,6 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { webEnv } from "../../config/env";
 import { PactApiClient, PactApiClientError } from "../../lib/api-client";
 import {
@@ -64,11 +70,7 @@ export function AttestorConsole() {
         }
 
         if (action === "input") {
-          const response = await client.getMilestoneProofInput(
-            programId,
-            milestoneKey,
-            projectWallet
-          );
+          const response = await client.getMilestoneProofInput(programId, milestoneKey);
           const root = (response as { data?: { publicInputs?: { milestoneRoot?: string } } })
             .data?.publicInputs?.milestoneRoot;
           setSummary(`Proof input ${root ?? "ready"}`);
@@ -84,52 +86,60 @@ export function AttestorConsole() {
   };
 
   return (
-    <div className="workflow-panel">
-      <div className="form-grid">
-        <label className="field">
-          <span>Program ID</span>
-          <input value={programId} onChange={(event) => setProgramId(event.target.value)} />
-        </label>
-        <label className="field">
-          <span>Milestone</span>
-          <input value={milestoneKey} onChange={(event) => setMilestoneKey(event.target.value)} />
-        </label>
-        <label className="field">
-          <span>Project wallet</span>
-          <input value={projectWallet} onChange={(event) => setProjectWallet(event.target.value)} />
-        </label>
-        <label className="field">
-          <span>Active users</span>
-          <input value={metrics.activeUsers} onChange={(event) => setMetrics((current) => ({ ...current, activeUsers: event.target.value }))} />
-        </label>
-        <label className="field">
-          <span>Pilot partners</span>
-          <input value={metrics.pilotPartners} onChange={(event) => setMetrics((current) => ({ ...current, pilotPartners: event.target.value }))} />
-        </label>
-        <label className="check-field">
-          <input checked={metrics.auditPassed} onChange={(event) => setMetrics((current) => ({ ...current, auditPassed: event.target.checked }))} type="checkbox" />
-          <span>Audit passed</span>
-        </label>
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="attestor-program-id">Program ID</Label>
+          <Input id="attestor-program-id" value={programId} onChange={(event) => setProgramId(event.target.value)} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="attestor-milestone">Milestone</Label>
+          <Input id="attestor-milestone" value={milestoneKey} onChange={(event) => setMilestoneKey(event.target.value)} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="attestor-project-wallet">Startup wallet</Label>
+          <Input id="attestor-project-wallet" value={projectWallet} onChange={(event) => setProjectWallet(event.target.value)} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="active-users">Active users</Label>
+          <Input id="active-users" value={metrics.activeUsers} onChange={(event) => setMetrics((current) => ({ ...current, activeUsers: event.target.value }))} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="pilot-partners">Pilot partners</Label>
+          <Input id="pilot-partners" value={metrics.pilotPartners} onChange={(event) => setMetrics((current) => ({ ...current, pilotPartners: event.target.value }))} />
+        </div>
+        <div className="flex items-center gap-2 pt-7">
+          <Checkbox checked={metrics.auditPassed} onCheckedChange={(checked) => setMetrics((current) => ({ ...current, auditPassed: checked === true }))} id="audit-passed" />
+          <Label htmlFor="audit-passed">Audit passed</Label>
+        </div>
       </div>
-      <div className="form-actions">
-        <button className="primary-button" disabled={isPending || !programId} onClick={() => run("evidence")} type="button">
+      <div className="flex flex-wrap gap-3">
+        <Button disabled={isPending || !programId} onClick={() => run("evidence")} type="button">
           Create evidence
-        </button>
-        <button className="secondary-button" disabled={isPending} onClick={() => run("build")} type="button">
+        </Button>
+        <Button disabled={isPending} onClick={() => run("build")} type="button" variant="outline">
           Build root
-        </button>
-        <button className="secondary-button" disabled={isPending || !rootId} onClick={() => run("publish")} type="button">
+        </Button>
+        <Button disabled={isPending || !rootId} onClick={() => run("publish")} type="button" variant="outline">
           Publish root
-        </button>
-        <button className="secondary-button" disabled={isPending || !programId} onClick={() => run("input")} type="button">
+        </Button>
+        <Button disabled={isPending || !programId} onClick={() => run("input")} type="button" variant="outline">
           Create proof input
-        </button>
+        </Button>
       </div>
       {validationErrors.length > 0 ? (
-        <span className="error-text">{validationErrors.join(", ")}</span>
+        <Alert variant="destructive">
+          <AlertTitle>Invalid metrics</AlertTitle>
+          <AlertDescription>{validationErrors.join(", ")}</AlertDescription>
+        </Alert>
       ) : null}
-      {summary ? <span className="success-text">{summary}</span> : null}
-      {error ? <span className="error-text">{error}</span> : null}
+      {summary ? <Badge variant="secondary">{summary}</Badge> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Attestor operation failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

@@ -8,6 +8,7 @@ export type ApiConfig = {
   host: string;
   port: number;
   corsOrigin: string;
+  cookieSecure?: boolean;
   redisUrl: string;
   bullmqPrefix: string;
 };
@@ -31,6 +32,7 @@ export const loadApiConfig = (): ApiConfig => ({
   host: process.env["API_HOST"] ?? "127.0.0.1",
   port: readNumber(process.env["API_PORT"], 4000),
   corsOrigin: process.env["CORS_ORIGIN"] ?? "http://localhost:3000",
+  cookieSecure: process.env["COOKIE_SECURE"] === "true",
   redisUrl: getRedisUrl(),
   bullmqPrefix: process.env["BULLMQ_PREFIX"] ?? "pact"
 });

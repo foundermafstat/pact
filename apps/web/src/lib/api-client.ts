@@ -1,6 +1,11 @@
 import {
   ApiErrorResponseSchema,
   ApiSuccessResponseSchema,
+  AssignWalletRoleRequestSchema,
+  AuthChallengeDtoSchema,
+  AuthChallengeRequestSchema,
+  AuthSessionDtoSchema,
+  AuthVerifyRequestSchema,
   CreateMilestoneEvidenceRequestSchema,
   CreateMockCredentialRequestSchema,
   CreateProgramRequestSchema,
@@ -15,6 +20,10 @@ import {
   RootPublishRequestSchema,
   SubmitMilestoneProofRequestSchema,
   TrancheDtoSchema,
+  WalletRoleDtoSchema,
+  type AssignWalletRoleRequest,
+  type AuthChallengeRequest,
+  type AuthVerifyRequest,
   type CreateMilestoneEvidenceRequest,
   type CreateMockCredentialRequest,
   type CreateProgramRequest,
@@ -71,8 +80,53 @@ export class PactApiClientError extends Error {
 export class PactApiClient {
   public constructor(
     private readonly baseUrl: string,
-    private readonly fetcher: FetchLike = fetch
+    private readonly fetcher: FetchLike = globalThis.fetch.bind(globalThis)
   ) {}
+
+  public createAuthChallenge(input: AuthChallengeRequest) {
+    return this.request("/api/auth/challenge", {
+      method: "POST",
+      body: AuthChallengeRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(AuthChallengeDtoSchema)
+    });
+  }
+
+  public verifyAuthChallenge(input: AuthVerifyRequest) {
+    return this.request("/api/auth/verify", {
+      method: "POST",
+      body: AuthVerifyRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(AuthSessionDtoSchema)
+    });
+  }
+
+  public getCurrentSession() {
+    return this.request("/api/auth/me", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(AuthSessionDtoSchema)
+    });
+  }
+
+  public logout() {
+    return this.request("/api/auth/logout", {
+      method: "POST",
+      schema: UnknownSuccessSchema
+    });
+  }
+
+  public listWalletRoles() {
+    return this.request("/api/admin/wallet-roles", {
+      method: "GET",
+      schema: ApiSuccessResponseSchema(WalletRoleDtoSchema.array())
+    });
+  }
+
+  public assignWalletRole(input: AssignWalletRoleRequest) {
+    return this.request("/api/admin/wallet-roles", {
+      method: "POST",
+      body: AssignWalletRoleRequestSchema.parse(input),
+      schema: ApiSuccessResponseSchema(WalletRoleDtoSchema)
+    });
+  }
 
   public createProgram(input: CreateProgramRequest) {
     return this.request("/api/programs", {
@@ -175,18 +229,11 @@ export class PactApiClient {
     });
   }
 
-  public getMilestoneProofInput(programId: string, milestoneKey: string, wallet: string) {
-    return this.request(
-      `/api/attestor/programs/${programId}/milestones/${milestoneKey}`,
-      {
-        method: "GET",
-        headers: {
-          "x-pact-role": "Project",
-          "x-pact-wallet": wallet
-        },
-        schema: UnknownSuccessSchema
-      }
-    );
+  public getMilestoneProofInput(programId: string, milestoneKey: string) {
+    return this.request(`/api/attestor/programs/${programId}/milestones/${milestoneKey}`, {
+      method: "GET",
+      schema: UnknownSuccessSchema
+    });
   }
 
   public getProof(proofId: string) {
@@ -215,6 +262,7 @@ export class PactApiClient {
   ): Promise<T> {
     const init: RequestInit = {
       method: options.method,
+      credentials: "include",
       headers: {
         "content-type": "application/json",
         ...options.headers

@@ -2,6 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { webEnv } from "../../config/env";
 import { PactApiClient, PactApiClientError } from "../../lib/api-client";
 import {
@@ -11,12 +15,14 @@ import {
 
 export function AuditTimeline({ items }: { items: PublicAuditTimelineItem[] }) {
   return (
-    <ol className="timeline">
+    <ol className="flex flex-col gap-3">
       {items.map((item) => (
-        <li key={item.type}>
-          <strong>{item.type}</strong>
-          <span>{item.message}</span>
-          <small>{Object.values(item.publicFields).join(" · ")}</small>
+        <li className="rounded-md border p-3" key={item.type}>
+          <strong className="block text-sm">{item.type}</strong>
+          <span className="block text-sm text-muted-foreground">{item.message}</span>
+          <small className="block truncate font-mono text-xs text-muted-foreground">
+            {Object.values(item.publicFields).join(" / ")}
+          </small>
         </li>
       ))}
     </ol>
@@ -31,14 +37,13 @@ export function AuditView() {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <div className="workflow-panel">
-      <div className="form-actions">
-        <label className="field compact-field">
-          <span>Program ID</span>
-          <input value={programId} onChange={(event) => setProgramId(event.target.value)} />
-        </label>
-        <button
-          className="primary-button"
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="audit-program-id">Program ID</Label>
+          <Input id="audit-program-id" value={programId} onChange={(event) => setProgramId(event.target.value)} />
+        </div>
+        <Button
           disabled={isPending || !programId}
           onClick={() => {
             setError(null);
@@ -60,10 +65,15 @@ export function AuditView() {
           type="button"
         >
           Load audit
-        </button>
+        </Button>
       </div>
       <AuditTimeline items={items} />
-      {error ? <span className="error-text">{error}</span> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Audit fetch failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

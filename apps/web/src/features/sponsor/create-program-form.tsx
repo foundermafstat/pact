@@ -2,6 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { webEnv } from "../../config/env";
 import { PactApiClient, PactApiClientError } from "../../lib/api-client";
 import {
@@ -35,7 +40,7 @@ export function CreateProgramForm() {
 
   return (
     <form
-      className="form-grid"
+      className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         setError(null);
@@ -54,27 +59,35 @@ export function CreateProgramForm() {
         });
       }}
     >
-      {fields.map((field) => (
-        <label className="field" key={field.key}>
-          <span>{field.label}</span>
-          <input
-            value={form[field.key]}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                [field.key]: event.target.value
-              }))
-            }
-          />
-        </label>
-      ))}
-      <div className="form-actions">
-        <button className="primary-button" disabled={isPending} type="submit">
-          {isPending ? "Creating..." : "Create program"}
-        </button>
-        {result ? <span className="success-text">Created {result}</span> : null}
-        {error ? <span className="error-text">{error}</span> : null}
+      <div className="grid gap-4 md:grid-cols-2">
+        {fields.map((field) => (
+          <div className="flex flex-col gap-2" key={field.key}>
+            <Label htmlFor={field.key}>{field.label}</Label>
+            <Input
+              id={field.key}
+              value={form[field.key]}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  [field.key]: event.target.value
+                }))
+              }
+            />
+          </div>
+        ))}
       </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button disabled={isPending} type="submit">
+          {isPending ? "Creating..." : "Create program"}
+        </Button>
+        {result ? <Badge variant="secondary">Created {result}</Badge> : null}
+      </div>
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Program creation failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </form>
   );
 }

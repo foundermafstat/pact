@@ -14,7 +14,8 @@ export const buildApiServer = async (
   });
 
   await app.register(cors, {
-    origin: config.corsOrigin
+    origin: config.corsOrigin,
+    credentials: true
   });
 
   registerErrorHandler(app);
